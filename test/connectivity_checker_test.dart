@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:basic_connectivity_checker/connectivity_checker.dart';
-import 'package:basic_connectivity_checker/connectivity_status.dart';
-import 'package:basic_connectivity_checker/http_client.dart';
+import 'package:basic_connectivity_checker/basic_connectivity_checker.dart';
 import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';

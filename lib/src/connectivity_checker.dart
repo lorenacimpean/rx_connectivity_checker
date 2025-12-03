@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:basic_connectivity_checker/connectivity_status.dart';
+import 'package:basic_connectivity_checker/basic_connectivity_checker.dart';
 import 'package:project_starter_kit/common_utils.dart';
 import 'package:rxdart/rxdart.dart';
-
-import 'connectivity_checker_constants.dart';
-import 'http_client.dart';
 
 /// A robust, reactive service that continuously checks network connectivity
 /// by attempting to access a specific URL.
