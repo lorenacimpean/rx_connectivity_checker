@@ -1,5 +1,5 @@
 // Indicates the state of network reachability based on an HTTP request.
-enum NetworkStatus {
+enum ConnectivityStatus {
   /// The remote endpoint responded with a valid 2xx status code.
   online,
 
