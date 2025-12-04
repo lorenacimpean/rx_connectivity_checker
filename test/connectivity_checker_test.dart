@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:basic_connectivity_checker/basic_connectivity_checker.dart';
 import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -283,7 +283,8 @@ void main() {
         );
 
         // 2. Start a manual check, which blocks the stream via exhaustMap
-        final Future<ConnectivityStatus> manualCall = checker.checkConnectivity();
+        final Future<ConnectivityStatus> manualCall = checker
+            .checkConnectivity();
 
         // 3. Wait long enough for the periodic timer (50ms) to fire (it should be ignored by exhaustMap)
         await Future<void>.delayed(const Duration(milliseconds: 60));
@@ -341,7 +342,8 @@ void main() {
         );
 
         // 2. Start a manual check, which blocks the stream via exhaustMap
-        final Future<ConnectivityStatus> manualCall = checker.checkConnectivity();
+        final Future<ConnectivityStatus> manualCall = checker
+            .checkConnectivity();
 
         // 3. Wait long enough for the periodic timer (20ms) to fire (it should be ignored by exhaustMap)
         await Future<void>.delayed(const Duration(milliseconds: 30));

@@ -1,6 +1,6 @@
-# basic_connectivity_checker
+# rx_connectivity_checker
 
-[![Pub Version](https://img.shields.io/pub/v/basic_connectivity_checker.svg)](https://pub.dev/packages/basic_connectivity_checker)  
+[![Pub Version](https://img.shields.io/pub/v/rx_connectivity_checker.svg)](https://pub.dev/packages/rx_connectivity_checker)  
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A **robust, reactive, and high-performance** Dart/Flutter library for monitoring network
@@ -11,7 +11,7 @@ connectivity via **dedicated HTTP health checks**. Built with **RxDart**, it use
 
 ## What it does:
 
-`basic_connectivity_checker` helps you monitor network connectivity in real time for Dart and
+`rx_connectivity_checker` helps you monitor network connectivity in real time for Dart and
 Flutter apps. You can react to connectivity changes, detect slow connections, and combine immediate
 and continuous connectivity checks.
 
@@ -49,17 +49,17 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  basic_connectivity_checker: ^1.0.0
+  rx_connectivity_checker: ^1.0.0
 ```
 
 ```shell
-dart pub add basic_connectivity_checker
+dart pub add rx_connectivity_checker
 ```
 
 Import in your Dart/Flutter code
 
 ```dart
-import 'package:basic_connectivity_checker/connectivity_checker.dart';
+import 'package:rx_connectivity_checker/connectivity_checker.dart';
 ```
 
 ## Initialization
@@ -88,11 +88,11 @@ This package requires Dart SDK >=3.2.0 <4.0.0 (as specified in [pubspec.yaml](pu
 ### 1. Reactive UI (Flutter StreamBuilder)
 
 import 'package:flutter/material.dart';
-import 'package:basic_connectivity_checker/network_status.dart';
+import 'package:rx_connectivity_checker/network_status.dart';
 
 ``` dart
 import 'package:flutter/material.dart';
-import 'package:basic_connectivity_checker/network_status.dart';
+import 'package:rx_connectivity_checker/network_status.dart';
 
 StreamBuilder<ConnectivityResult>(
   stream: connectivityChecker.connectivityStream,
@@ -128,7 +128,7 @@ print('Current status: $status');
 ### Immediate Check (Service/Repository Layer)
 
 ```dart 
-import 'package:basic_connectivity_checker/connectivity_status.dart';
+import 'package:rx_connectivity_checker/connectivity_status.dart';
 
 Future<User> fetchUserData(String userId) async {
 // 1. Check connectivity immediately

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:basic_connectivity_checker/basic_connectivity_checker.dart';
 import 'package:flutter/material.dart';
+import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 
 class ConnectivityScreen extends StatefulWidget {
   const ConnectivityScreen({super.key});

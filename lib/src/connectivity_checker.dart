@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:basic_connectivity_checker/basic_connectivity_checker.dart';
 import 'package:project_starter_kit/common_utils.dart';
+import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A robust, reactive service that continuously checks network connectivity

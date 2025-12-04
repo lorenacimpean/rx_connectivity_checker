@@ -1,4 +1,4 @@
-name: basic_connectivity_checker
+name: rx_connectivity_checker
 description: "A new Flutter package project."
 version: 0.0.1
 homepage:
