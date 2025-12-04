@@ -12,7 +12,7 @@ class DefaultHttpClient implements IHttpClient {
 
 /// Interface for the HTTP client dependency.
 ///
-/// Abstracting the HTTP client ensures **testability** and allows the core logic
+/// Abstracting the HTTP client ensures testability and allows the core logic
 /// (e.g., [ConnectivityChecker]) to depend on a stable contract rather than a
 /// concrete implementation (DIP).
 abstract class IHttpClient {

@@ -65,7 +65,7 @@ final connectivityChecker = ConnectivityChecker(
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:basic_connectivity_checker/connectivity_status.dart';
+import 'package:basic_connectivity_checker/network_status.dart';
 
 StreamBuilder<ConnectivityResult>
 (
@@ -89,7 +89,7 @@ return Text('Status: ${snapshot.data}');
 ### 2. Immediate Check (Service/Repository Layer)
 
 ```dart
-import 'package:basic_connectivity_checker/connectivity_status.dart';
+import 'package:basic_connectivity_checker/network_status.dart';
 
 Future<User> fetchUserData(String userId) async {
   // 1. Check connectivity immediately

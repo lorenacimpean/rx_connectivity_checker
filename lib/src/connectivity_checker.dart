@@ -28,10 +28,10 @@ class ConnectivityChecker {
 
   // The single, cold, multicasting source of truth.
   // This stream only starts its periodic checks when the first listener subscribes.
-  late final Stream<ConnectivityResult> _internalStream = _buildStream()
+  late final Stream<NetworkStatus> _internalStream = _buildStream()
       //  Must be last for multicasting to work.
       .shareReplay(maxSize: 1);
-  Future<ConnectivityResult>? _pendingCheckFuture;
+  Future<NetworkStatus>? _pendingCheckFuture;
 
   /// Creates a [ConnectivityChecker] instance.
   ///
@@ -39,7 +39,7 @@ class ConnectivityChecker {
   /// - [checkFrequency]: The interval at which the background check should occur.
   /// - [url]: The URL used for the connectivity check (defaults to a reliable external source).
   /// - [checkSlowConnection]: If true, a [TimeoutException] is mapped to
-  ///   [ConnectivityResult.slow]. Otherwise, it is mapped to [ConnectivityResult.offline].
+  ///   [NetworkStatus.slow]. Otherwise, it is mapped to [NetworkStatus.offline].
   /// - [client]: An optional HTTP client implementation for dependency injection.
   ConnectivityChecker({
     this.timeout = ConnectivityCheckerConstants.defaultTimeout,
@@ -51,16 +51,16 @@ class ConnectivityChecker {
   }) : _url = url ?? ConnectivityCheckerConstants.defaultCheckUrl,
        _client = client ?? DefaultHttpClient();
 
-  /// A cold, multicasting stream that emits the current [ConnectivityResult].
+  /// A cold, multicasting stream that emits the current [NetworkStatus].
   ///
   /// The stream is **cold** (network checks only run when subscribed) and
   /// **multicasting** (the expensive periodic check runs only once, sharing
   /// results with all listeners).
   ///
-  /// The stream provides an immediate result of [ConnectivityResult.unknown]
+  /// The stream provides an immediate result of [NetworkStatus.unknown]
   /// upon subscription, followed by the actual state. It only emits a new value
   /// when the connectivity status changes.
-  Stream<ConnectivityResult> get connectivityStream => _internalStream;
+  Stream<NetworkStatus> get connectivityStream => _internalStream;
 
   /// Performs a manual, one-off connectivity check and updates the
   /// [connectivityStream] for all listeners.
@@ -70,49 +70,47 @@ class ConnectivityChecker {
   /// instead of starting a new network request.
   ///
   /// Returns the immediate result of the connectivity check.
-  Future<ConnectivityResult> checkConnectivity() async {
+  Future<NetworkStatus> checkConnectivity() async {
     // Triggers the stream and returns the result of the immediate check.
     _manualCheckTrigger.add(true);
     return _performCheck();
   }
 
   // Private method to define the entire, complex stream pipeline.
-  Stream<ConnectivityResult> _buildStream() {
-    // 1. Periodic Stream (Cold Trigger)
+  Stream<NetworkStatus> _buildStream() {
+    // Periodic Stream (Cold Trigger)
     final periodicStream = Stream.periodic(checkFrequency, (_) => true);
 
-    // 2. Merge all triggers (Periodic + Manual)
+    // Merge all triggers (Periodic + Manual)
     return Rx.merge([periodicStream, _manualCheckTrigger.stream])
         // Prevents rapid fire from manual calls and periodic ticks
         .throttleTime(checkFrequency)
-        // CRITICAL: Ensures only one network request is active at a time.
+        // Ensures only one network request is active at a time.
         .exhaustMap((_) => Stream.fromFuture(_performCheck()))
         // Provides immediate initial state
-        .startWith(ConnectivityResult.unknown)
+        .startWith(NetworkStatus.unknown)
         // Maps errors to a connectivity result
-        .onErrorReturn(ConnectivityResult.unknown);
+        .onErrorReturn(NetworkStatus.unknown);
   }
 
   // Executes the actual HTTP check against the configured URL.
-  Future<ConnectivityResult> _callAPI() async {
+  Future<NetworkStatus> _callAPI() async {
     try {
       final response = await _client
           .get(Uri.parse(_url), headers: headers)
           .timeout(timeout);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return ConnectivityResult.online;
+        return NetworkStatus.online;
       }
-      return ConnectivityResult.offline;
+      return NetworkStatus.offline;
     } on TimeoutException {
-      return checkSlowConnection
-          ? ConnectivityResult.slow
-          : ConnectivityResult.offline;
+      return checkSlowConnection ? NetworkStatus.slow : NetworkStatus.offline;
     } on SocketException {
-      return ConnectivityResult.offline;
+      return NetworkStatus.offline;
     } catch (e) {
       DebugLogger.logError('Request failed permanently', e);
-      return ConnectivityResult.offline;
+      return NetworkStatus.offline;
     }
   }
 
@@ -130,22 +128,22 @@ class ConnectivityChecker {
   /// Once the internal API call completes (either successfully or with an error),
   /// the [_pendingCheckFuture] lock is released in the `finally` block, allowing
   /// subsequent checks to proceed.
-  Future<ConnectivityResult> _performCheck() async {
-    // 1. If a check is already running, return the existing Future.
+  Future<NetworkStatus> _performCheck() async {
+    // If a check is already running, return the existing Future.
     if (_pendingCheckFuture != null) {
       return _pendingCheckFuture!;
     }
 
-    // 2. Initiate a new check and store the future.
+    // Initiate a new check and store the future.
     final future = _callAPI();
     _pendingCheckFuture = future;
 
     try {
-      // 3. Wait for the API call to complete.
+      // Wait for the API call to complete.
       final result = await future;
       return result;
     } finally {
-      // 4. Release the lock when the Future completes (success or failure).
+      // Release the lock when the Future completes (success or failure).
       _pendingCheckFuture = null;
     }
   }

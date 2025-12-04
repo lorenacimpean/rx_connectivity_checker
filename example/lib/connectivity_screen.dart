@@ -13,10 +13,10 @@ class ConnectivityScreen extends StatefulWidget {
 class _ConnectivityScreenState extends State<ConnectivityScreen> {
   // 1. Service and Subscription Management
   late final ConnectivityChecker _checker;
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<NetworkStatus>? _connectivitySubscription;
 
   // 2. Local State
-  ConnectivityResult _currentStatus = ConnectivityResult.unknown;
+  NetworkStatus _currentStatus = NetworkStatus.unknown;
   String _log = 'Status: UNKNOWN (Initializing...)';
 
   @override
@@ -99,28 +99,28 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
 
   // --- Helper Functions ---
 
-  Color _getStatusColor(ConnectivityResult result) {
+  Color _getStatusColor(NetworkStatus result) {
     switch (result) {
-      case ConnectivityResult.online:
+      case NetworkStatus.online:
         return Colors.green;
-      case ConnectivityResult.offline:
+      case NetworkStatus.offline:
         return Colors.red;
-      case ConnectivityResult.slow:
+      case NetworkStatus.slow:
         return Colors.orange;
-      case ConnectivityResult.unknown:
+      case NetworkStatus.unknown:
         return Colors.blueGrey;
     }
   }
 
-  IconData _getStatusIcon(ConnectivityResult result) {
+  IconData _getStatusIcon(NetworkStatus result) {
     switch (result) {
-      case ConnectivityResult.online:
+      case NetworkStatus.online:
         return Icons.wifi;
-      case ConnectivityResult.offline:
+      case NetworkStatus.offline:
         return Icons.signal_wifi_off;
-      case ConnectivityResult.slow:
+      case NetworkStatus.slow:
         return Icons.network_check;
-      case ConnectivityResult.unknown:
+      case NetworkStatus.unknown:
         return Icons.help_outline;
     }
   }
