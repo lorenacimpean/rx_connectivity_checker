@@ -108,12 +108,12 @@ Future<User> fetchUserData(String userId) async {
 
 ## ℹ️ Additional Information
 
-### Architecture & Performance
-
-* **Dependency Inversion (DIP)**: Core logic is decoupled from the network implementation via
-  `IHttpClient`, making it easy to mock and unit test.
-* **Concurrency Control**: Uses `exhaustMap` to ensure only **one network request** is active at a
-  time, preventing race conditions and resource wastage.
+- **Forward Streams**: `connectivityStream` can be forwarded to other streams or state management
+  solutions (e.g., `Bloc`, `Riverpod`) for centralized connectivity tracking.
+- **Single Active Request**: Ensures only one network check is active at a time, even with multiple
+  subscribers.
+- **Combine Immediate & Continuous Checks**: Use `checkConnectivity()` for instant status alongside
+  `connectivityStream` for reactive updates.
 
 ---
 
