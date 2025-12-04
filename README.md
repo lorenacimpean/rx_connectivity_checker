@@ -78,7 +78,7 @@ final connectivityChecker = ConnectivityChecker(
 
 ```yaml
 environment:
-sdk: ">=3.2.0 <4.0.0"
+  sdk: '>=3.9.2 <4.0.0'
 ```
 
 This package requires Dart SDK >=3.2.0 <4.0.0 (as specified in [pubspec.yaml](pubspec.yaml)).
