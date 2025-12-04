@@ -1,17 +1,16 @@
-name: basic_connectivity_checker_example
-description: Demonstrates how to use the basic_connectivity_checker package.
+name: rx_connectivity_checker_example
+description: A robust, reactive Dart/Flutter package for monitoring network connectivity.
 
 publish_to: 'none'
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.10.0"
+  sdk: '>=3.9.2 <4.0.0'
 
 dependencies:
+  dev: ^1.0.0
   flutter:
     sdk: flutter
-  # This dependency points to the root of your local package
-  basic_connectivity_checker:
+  rx_connectivity_checker:
     path: ../
   rxdart: ^0.28.0
 

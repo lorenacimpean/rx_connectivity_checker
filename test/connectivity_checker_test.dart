@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:basic_connectivity_checker/basic_connectivity_checker.dart';
 import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -39,7 +39,7 @@ void main() {
         final result = await checker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.online);
+        expect(result, ConnectivityStatus.online);
         verify(
           () => mockClient.get(any(), headers: any(named: 'headers')),
         ).called(1);
@@ -57,7 +57,7 @@ void main() {
         // Assert
         expect(
           checker.connectivityStream,
-          emitsInOrder([NetworkStatus.unknown, NetworkStatus.online]),
+          emitsInOrder([ConnectivityStatus.unknown, ConnectivityStatus.online]),
         );
 
         // Manually trigger the first check for the stream to update its state
@@ -84,10 +84,10 @@ void main() {
       final result = await checker.checkConnectivity();
 
       // Assert
-      expect(result, NetworkStatus.offline);
+      expect(result, ConnectivityStatus.offline);
       expect(
         checker.connectivityStream,
-        emitsInOrder([NetworkStatus.unknown, NetworkStatus.offline]),
+        emitsInOrder([ConnectivityStatus.unknown, ConnectivityStatus.offline]),
       );
 
       // VERIFY: HTTP client was called once
@@ -108,7 +108,7 @@ void main() {
         final result = await checker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.offline);
+        expect(result, ConnectivityStatus.offline);
 
         // VERIFY: HTTP client was called once
         verify(
@@ -129,7 +129,7 @@ void main() {
         final result = await checker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.slow);
+        expect(result, ConnectivityStatus.slow);
 
         // VERIFY: HTTP client was called once
         verify(
@@ -154,7 +154,7 @@ void main() {
         final result = await offlineChecker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.offline);
+        expect(result, ConnectivityStatus.offline);
 
         // VERIFY: HTTP client was called once
         verify(
@@ -175,7 +175,7 @@ void main() {
         final result = await checker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.offline);
+        expect(result, ConnectivityStatus.offline);
 
         // VERIFY: HTTP client was called once
         verify(
@@ -196,7 +196,7 @@ void main() {
         final result = await checker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.slow);
+        expect(result, ConnectivityStatus.slow);
 
         // VERIFY: HTTP client was called once
         verify(
@@ -221,7 +221,7 @@ void main() {
         final result = await offlineChecker.checkConnectivity();
 
         // Assert
-        expect(result, NetworkStatus.offline);
+        expect(result, ConnectivityStatus.offline);
 
         // VERIFY: HTTP client was called once
         verify(
@@ -246,9 +246,9 @@ void main() {
 
         // Act
         // Fire three calls simultaneously
-        final Future<NetworkStatus> call1 = checker.checkConnectivity();
-        final Future<NetworkStatus> call2 = checker.checkConnectivity();
-        final Future<NetworkStatus> call3 = checker.checkConnectivity();
+        final Future<ConnectivityStatus> call1 = checker.checkConnectivity();
+        final Future<ConnectivityStatus> call2 = checker.checkConnectivity();
+        final Future<ConnectivityStatus> call3 = checker.checkConnectivity();
 
         // Complete the single pending request
         completer.complete(Response('', 200));
@@ -257,7 +257,7 @@ void main() {
         final results = await Future.wait([call1, call2, call3]);
 
         // All results must be online, proving they all waited for the single successful call
-        expect(results, everyElement(NetworkStatus.online));
+        expect(results, everyElement(ConnectivityStatus.online));
 
         // CRITICAL ASSERTION: The HTTP client must only be called once
         verify(
@@ -279,11 +279,12 @@ void main() {
         // 1. Start listening to connectivityStream (starts the periodic timer)
         expectLater(
           checker.connectivityStream,
-          emitsInOrder([NetworkStatus.unknown, NetworkStatus.online]),
+          emitsInOrder([ConnectivityStatus.unknown, ConnectivityStatus.online]),
         );
 
         // 2. Start a manual check, which blocks the stream via exhaustMap
-        final Future<NetworkStatus> manualCall = checker.checkConnectivity();
+        final Future<ConnectivityStatus> manualCall = checker
+            .checkConnectivity();
 
         // 3. Wait long enough for the periodic timer (50ms) to fire (it should be ignored by exhaustMap)
         await Future<void>.delayed(const Duration(milliseconds: 60));
@@ -295,7 +296,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
         // Assert
-        expect(await manualCall, NetworkStatus.online);
+        expect(await manualCall, ConnectivityStatus.online);
 
         // The HTTP client must only be called once
         verify(
@@ -315,7 +316,7 @@ void main() {
         // 1. Start listening to connectivityStream (starts the periodic timer)
         await expectLater(
           checker.connectivityStream,
-          emitsInOrder([NetworkStatus.unknown, NetworkStatus.online]),
+          emitsInOrder([ConnectivityStatus.unknown, ConnectivityStatus.online]),
         );
 
         // VERIFY: HTTP client was called once
@@ -337,11 +338,12 @@ void main() {
         // 1. Start listening to connectivityStream (starts the periodic timer)
         final expectation = expectLater(
           checker.connectivityStream,
-          emitsInOrder([NetworkStatus.unknown, NetworkStatus.online]),
+          emitsInOrder([ConnectivityStatus.unknown, ConnectivityStatus.online]),
         );
 
         // 2. Start a manual check, which blocks the stream via exhaustMap
-        final Future<NetworkStatus> manualCall = checker.checkConnectivity();
+        final Future<ConnectivityStatus> manualCall = checker
+            .checkConnectivity();
 
         // 3. Wait long enough for the periodic timer (20ms) to fire (it should be ignored by exhaustMap)
         await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -352,7 +354,7 @@ void main() {
         await expectation;
 
         // Assert
-        expect(await manualCall, NetworkStatus.online);
+        expect(await manualCall, ConnectivityStatus.online);
 
         // CRITICAL ASSERTION: The HTTP client must only be called once
         verify(
