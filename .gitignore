@@ -1,31 +1,96 @@
+gitignore
 # Miscellaneous
 *.class
 *.log
 *.pyc
+*.swid
 *.swp
 .DS_Store
 .atom/
 .buildlog/
 .history
 .svn/
-migrate_working_dir/
 
-# IntelliJ related
+# IntelliJ
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
+/out/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VSCode
+.vscode/
 
-# Flutter/Dart/Pub related
-# Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
-/pubspec.lock
-**/doc/api/
-.dart_tool/
-.flutter-plugins-dependencies
+# Flutter
+.metadata
+.packages
 /build/
-/coverage/
+/ios/Pods/
+/ios/swift_packages/
+/ios/.symlinks/
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Runner/Assets.xcassets/AppIcon.appiconset/
+/ios/Runner/Assets.xcassets/LaunchImage.imageset/
+/ios/Runner/GeneratedPluginRegistrant.h
+/ios/Runner/GeneratedPluginRegistrant.m
+/ios/Runner.xcodeproj/project.xcworkspace/
+/ios/Runner.xcodeproj/xcshareddata/
+/ios/Runner.xcworkspace/contents.xcworkspacedata
+/ios/Runner.xcworkspace/xcshareddata/
+/flutter_build/
+
+# Generated plugin build files
+/ios/plugins.xcfilelist
+/ios/Flutter/ephemeral/
+/ios/Flutter/pod_helper.rb
+/ios/Runner/Info.plist
+
+# Dart
+.dart_tool/
+.pub-cache/
+.pub/
+/doc/api/
+
+# Android
+/android/.gradle/
+/android/app/src/main/assets/flutter_assets/
+/android/build/
+/android/key.properties
+/android/local.properties
+
+# Web
+/web/build/
+/web/dart_js.js
+/web/dart_sdk.js
+/web/main.dart.js
+/web/main.dart.js_*.part.js
+
+# Linux
+/linux/flutter/generated_plugin_registrant.cc
+/linux/flutter/generated_plugin_registrant.h
+/linux/flutter/generated_plugins.cmake
+
+# macOS
+/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Windows
+/windows/flutter/generated_plugin_registrant.cc
+/windows/flutter/generated_plugin_registrant.h
+/windows/flutter/generated_plugins.cmake
+
+# Example
+/example/build/
+/example/.dart_tool/
+/example/.pub/
+/example/ios/Pods/
+/example/ios/Flutter/
+/example/ios/.symlinks/
+/example/pubspec.lock
+/example/ios/Runner.xcworkspace
+/example/ios/Runner.xcodeproj/project.xcworkspace
+
+# Obfuscation artifacts
+*.map
