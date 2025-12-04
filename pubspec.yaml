@@ -1,5 +1,5 @@
 name: rx_connectivity_checker
-description: "A new Flutter package project."
+description: "A robust, reactive Dart/Flutter package for monitoring network connectivity."
 version: 0.1.0
 repository: https://github.com/lorenacimpean/rx_connectivity_checker
 

@@ -1,5 +1,5 @@
 name: rx_connectivity_checker_example
-description: A robust, reactive Dart/Flutter package for monitoring network connectivity.
+description: "Example for rx_connectivity_checker package"
 
 publish_to: 'none'
 
