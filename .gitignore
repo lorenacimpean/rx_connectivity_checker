@@ -53,6 +53,7 @@ gitignore
 .pub-cache/
 .pub/
 /doc/api/
+/coverage/
 
 # Android
 /android/.gradle/
