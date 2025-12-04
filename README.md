@@ -1,39 +1,123 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# basic_connectivity_checker
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+A **robust, reactive, and high-performance** Dart/Flutter library for monitoring network
+connectivity using dedicated HTTP health checks. Built with **RxDart**, it uses **cold observables**
+and **multicasting** patterns to minimize resource usage and prevent redundant network calls.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
+---
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+## ✨ Features
 
-## Features
+* **Reactive Monitoring**: Provides a `Stream` (`connectivityStream`) for real-time connectivity
+  updates.
+* **Performance Optimized**: Uses `shareReplay` and `exhaustMap` to ensure only one active network
+  request runs at a time, avoiding redundant periodic or manual calls.
+* **Cold Observable**: Network checks only run when the stream is actively subscribed to (e.g.,
+  Flutter `StreamBuilder`).
+* **Service-Level Checks**: Use `checkConnectivity()` for immediate, non-reactive status in services
+  or repositories.
+* **Customizable**: Configure check frequency, timeout, URL, and headers.
+* **Testable & Mockable**: Built on the `IHttpClient` interface for dependency inversion.
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+---
 
-## Getting started
+## 🚀 Getting Started
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+### Prerequisites
 
-## Usage
+This package relies on:
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+* [`http`](https://pub.dev/packages/http) for HTTP requests
+* [`rxdart`](https://pub.dev/packages/rxdart) for reactive stream management
 
-```dart
-const like = 'sample';
+### Installation
+
+Add to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  basic_connectivity_checker: ^1.0.0
 ```
 
-## Additional information
+Import the package:
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+```dart
+import 'package:basic_connectivity_checker/connectivity_checker.dart';
+```
+
+### Initialization
+
+```dart
+
+final connectivityChecker = ConnectivityChecker(
+  url: 'https://api.my-service.com/health', // Custom health check endpoint
+  checkFrequency: const Duration(seconds: 30), // Periodic check interval
+  timeout: const Duration(seconds: 5), // Quick failure detection
+  checkSlowConnection: true, // Treat timeouts as 'slow'
+);
+```
+
+---
+
+## 📌 Usage
+
+### 1. Reactive UI (Flutter `StreamBuilder`)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:basic_connectivity_checker/network_status.dart';
+
+StreamBuilder<ConnectivityResult>
+(
+stream: connectivityChecker.connectivityStream,
+initialData: ConnectivityResult.unknown,
+builder: (context, snapshot) {
+switch (snapshot.data) {
+case ConnectivityResult.online:
+return const Text('🟢 Online!');
+case ConnectivityResult.offline:
+return const Text('🔴 Offline.');
+case ConnectivityResult.slow:
+return const Text('🟡 Slow connection');
+default:
+return Text('Status: ${snapshot.data}');
+}
+},
+)
+```
+
+### 2. Immediate Check (Service/Repository Layer)
+
+```dart
+import 'package:basic_connectivity_checker/network_status.dart';
+
+Future<User> fetchUserData(String userId) async {
+  // 1. Check connectivity immediately
+  final status = await connectivityChecker.checkConnectivity();
+
+  if (status != ConnectivityResult.online) {
+    throw Exception('Not connected to the internet.');
+  }
+
+  // 2. Proceed with API call
+  return _apiClient.getUser(userId);
+}
+```
+
+---
+
+## ℹ️ Additional Information
+
+### Architecture & Performance
+
+* **Dependency Inversion (DIP)**: Core logic is decoupled from the network implementation via
+  `IHttpClient`, making it easy to mock and unit test.
+* **Concurrency Control**: Uses `exhaustMap` to ensure only **one network request** is active at a
+  time, preventing race conditions and resource wastage.
+
+---
+
+## 🤝 Contributing
+
+* **Issues**: File any bugs on the GitHub repository's issue tracker.
+* **Pull Requests**: Contributions are welcome! Include clear commit messages and unit tests.
