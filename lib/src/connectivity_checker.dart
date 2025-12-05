@@ -84,7 +84,7 @@ class ConnectivityChecker {
     // Merge all triggers (Periodic + Manual)
     return Rx.merge([periodicStream, _manualCheckTrigger.stream])
         // Prevents rapid fire from manual calls and periodic ticks
-        .throttleTime(checkFrequency)
+        .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
         // Ensures only one network request is active at a time.
         .exhaustMap((_) => Stream.fromFuture(_performCheck()))
         // Provides immediate initial state

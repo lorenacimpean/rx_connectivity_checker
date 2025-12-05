@@ -126,7 +126,6 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
   }
 
   void _initializeChecker() {
-    // Configuration: Check every 5 seconds, allow 2 retries (with backoff/jitter)
     _checker = ConnectivityChecker(
       checkFrequency: const Duration(seconds: 5),
       timeout: const Duration(seconds: 5),

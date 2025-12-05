@@ -19,4 +19,5 @@ abstract class ConnectivityCheckerConstants {
 
   static const Duration defaultTimeout = Duration(seconds: 15);
   static const Duration defaultCheckFrequency = Duration(seconds: 15);
+  static const Duration defaultThrottleTime = Duration(milliseconds: 300);
 }
