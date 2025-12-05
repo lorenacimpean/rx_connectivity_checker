@@ -1,3 +1,10 @@
+## 0.1.1
+
+### Fixed
+* Corrected an issue where `throttleTime` was unintentionally tied to the `checkFrequency` interval.
+  This caused manual connectivity checks to be suppressed when triggered shortly after a periodic
+  check, making `checkConnectivity()` appear unresponsive.
+
 ## 0.1.0
 
 ### Added
