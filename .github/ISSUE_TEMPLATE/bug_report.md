@@ -12,6 +12,22 @@ A clear and concise description of what the bug is.
 
 ---
 
+## 📝 Summary
+
+A clear and concise description of what the bug is.
+
+---
+
+## 💻 Environment
+
+Please provide the following information:
+
+* **Package Version:** [e.g., 1.2.5]
+* **Dart Version:** [e.g., 3.4.0]
+* **Flutter Version:** [e.g., 3.22.0]
+* **Platform(s) Affected:** [e.g., iOS, Android, Web, Desktop (Windows, macOS, Linux)]
+
+
 ## 💻 Environment
 
 Please provide the following information:
