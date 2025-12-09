@@ -1,39 +1,61 @@
----
-name: "🚀 New Feature Request"
-about: Suggest an idea or enhancement for this package.
-title: "[FEATURE] Concise and descriptive title of the requested feature"
-labels: 'feature, enhancement, needs triage'
-assignees: ''
+## 📝 Summary
+
+A clear and concise description of what the bug is.
+
 ---
 
-## 🚀 Feature Summary
+## 💻 Environment
 
-### 1. The Problem
+Please provide the following information:
 
-Is this feature request related to a problem or limitation you're currently facing?
+* **Package Version:** [e.g., 1.2.5]
+* **Dart Version:** [e.g., 3.4.0]
+* **Flutter Version:** [e.g., 3.22.0]
+* **Platform(s) Affected:** [e.g., iOS, Android, Web, Desktop (Windows, macOS, Linux)]
 
-* [ ] Yes
-* [ ] No
+---
 
-If **Yes**, please describe the problem clearly. What is the current limitation that this feature aims to solve?
+## ❌ Current Behavior
 
-> **Example:** "I'm currently unable to specify a custom loading indicator when fetching data, which makes it difficult to match the package's UI to my app's design language."
+A clear description of the behavior you are currently observing.
 
-### 2. Proposed Solution
+* What happens when you run the code?
+* Are any error messages printed to the console (include the full **Stack Trace** if possible)?
 
-Describe the feature you'd like to see added. What new functionality should the package provide?
+---
 
-### 3. Expected Behavior / API Suggestion
+## ✅ Expected Behavior
 
-If implemented, how would a user interact with this new feature?
+A clear description of what you expected to happen.
 
-* What new **methods**, **parameters**, or **classes** do you suggest?
-* Provide a minimal, reproducible **code example** demonstrating the desired usage:
+---
 
-```dart
-// Desired implementation example:
+##  reproducible Steps
 
-// ExistingClass(
-//   // New optional parameter for the feature
-//   customIndicator: MyCustomLoader(), 
-// );
+Steps to reproduce the behavior:
+
+1.  In your `pubspec.yaml`, add the package dependency:
+    ```yaml
+    dependencies:
+      your_package_name: ^[version]
+    ```
+2.  Add the following code snippet to your file:
+    ```dart
+    // [Paste the smallest code snippet that demonstrates the issue]
+    ```
+3.  Run the application on [Platform].
+4.  See error/unexpected behavior.
+
+* **Tip:** If possible, include a link to a minimum working example (e.g., a GitHub Gist or repository).
+
+---
+
+## 🖼️ Screenshots / Video (Optional)
+
+If applicable, add screenshots or a screen recording to help explain your problem.
+
+---
+
+## 💡 Possible Fix (Optional)
+
+If you have already identified the cause or know how to fix it, suggest a solution here.
