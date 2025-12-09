@@ -1,3 +1,8 @@
+## 0.2.0
+
+### Added
+* Issue templates
+
 ## 0.1.1
 
 ### Fixed
