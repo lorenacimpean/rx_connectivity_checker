@@ -1,3 +1,11 @@
+---
+name: 🐛 Bug Report
+about: Report a bug that prevents the package from working as expected.
+title: "[BUG]: Short description of the unexpected behavior"
+labels: bug
+assignees: ''
+---
+
 ## 📝 Summary
 
 A clear and concise description of what the bug is.
