@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
-import 'package:test/test.dart';
 
 void main() {
   late MockHttpClient mockClient;
