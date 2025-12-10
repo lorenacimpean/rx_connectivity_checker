@@ -1,8 +1,6 @@
 name: rx_connectivity_checker_example
 description: "Example for rx_connectivity_checker package"
 
-version: 0.1.1
-
 publish_to: 'none'
 
 environment:

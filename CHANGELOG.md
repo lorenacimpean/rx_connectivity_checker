@@ -1,3 +1,8 @@
+## 0.3.0
+
+### Added
+* Added sample code for pub dev example
+
 ## 0.2.0
 
 ### Added

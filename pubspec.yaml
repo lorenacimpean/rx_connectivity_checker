@@ -1,6 +1,6 @@
 name: rx_connectivity_checker
 description: "A robust, reactive Dart/Flutter package for monitoring network connectivity."
-version: 0.2.0
+version: 0.3.0
 repository: https://github.com/lorenacimpean/rx_connectivity_checker
 
 environment:
