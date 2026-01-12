@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:project_starter_kit/common_utils.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
+import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interface.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A robust, reactive service that continuously checks network connectivity
@@ -22,6 +23,7 @@ class ConnectivityChecker {
   final bool checkSlowConnection;
   final IHttpClient _client;
   final Map<String, String>? headers;
+  final RxConnectivityCheckerPlatform _platform;
 
   // A dedicated subject for manual check triggers.
   late final PublishSubject<bool> _manualCheckTrigger = PublishSubject();
@@ -48,8 +50,10 @@ class ConnectivityChecker {
     this.checkSlowConnection = false,
     IHttpClient? client,
     this.headers,
+    RxConnectivityCheckerPlatform? platform,
   }) : _url = url ?? ConnectivityCheckerConstants.defaultCheckUrl,
-       _client = client ?? DefaultHttpClient();
+       _client = client ?? DefaultHttpClient(),
+       _platform = platform ?? RxConnectivityCheckerPlatform.instance;
 
   /// A cold, multicasting stream that emits the current [ConnectivityStatus].
   ///
@@ -79,10 +83,23 @@ class ConnectivityChecker {
   // Private method to define the entire, complex stream pipeline.
   Stream<ConnectivityStatus> _buildStream() {
     // Periodic Stream (Cold Trigger)
-    final periodicStream = Stream.periodic(checkFrequency, (_) => true);
+    final periodicStream = Stream.periodic(checkFrequency, (_) {
+      DebugLogger.log('Periodic check triggered');
+      return true;
+    });
+
+    final nativeStream = _platform.platformStatusStream.map((status) {
+      DebugLogger.log('Native platform status changed: $status');
+      return true;
+    });
+
+    final manualStream = _manualCheckTrigger.stream.map((_) {
+      DebugLogger.log('Manual check triggered');
+      return true;
+    });
 
     // Merge all triggers (Periodic + Manual)
-    return Rx.merge([periodicStream, _manualCheckTrigger.stream])
+    return Rx.merge([periodicStream, manualStream, nativeStream])
         // Prevents rapid fire from manual calls and periodic ticks
         .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
         // Ensures only one network request is active at a time.
