@@ -1,7 +1,9 @@
 # rx_connectivity_checker
 
-[![Pub Version](https://img.shields.io/pub/v/rx_connectivity_checker.svg)](https://pub.dev/packages/rx_connectivity_checker)  
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Pub Version](https://img.shields.io/pub/v/rx_connectivity_checker.svg)](https://pub.dev/packages/rx_connectivity_checker)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Android%20|%20iOS%20|%20Linux%20|%20macOS%20|%20Windows-lightgrey)](#)
+[![Pub Points](https://img.shields.io/pub/points/rx_connectivity_checker)](https://pub.dev/packages/rx_connectivity_checker)
 
 A **robust, reactive, and high-performance** federated Flutter library for monitoring network connectivity.
 
