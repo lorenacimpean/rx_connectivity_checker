@@ -2,14 +2,14 @@ import Cocoa
 import FlutterMacOS
 import Network
 
-/// macOS implementation of the RxConnectivityChecker.
-///
-/// Reuses the NWPathMonitor logic to provide high-performance,
-/// power-efficient network monitoring on desktop.
 public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var eventSink: FlutterEventSink?
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "RxConnectivityMonitor")
+
+    /// Optimization: This variable must be declared here to be in scope.
+    /// It tracks the last emitted status to prevent duplicate events across the bridge.
+    private var lastStatus: String?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "rx_connectivity_checker", binaryMessenger: registrar.messenger)
@@ -23,10 +23,19 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin, FlutterS
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         self.eventSink = events
 
+        // Reset lastStatus on a new subscription to ensure the current state is sent immediately
+        lastStatus = nil
+
         monitor.pathUpdateHandler = { [weak self] path in
-            // Map native status to our unified plugin protocol
-            let status = path.status == .satisfied ? "satisfied" : "unsatisfied"
-            self?.eventSink?(status)
+            let currentStatus = path.status == .satisfied ? "satisfied" : "unsatisfied"
+
+            // Deduplication logic: Only send to Dart if the state actually changed
+            if currentStatus != self?.lastStatus {
+                self?.lastStatus = currentStatus
+
+                // Ensure the event is sent back to the Flutter event sink
+                self?.eventSink?(currentStatus)
+            }
         }
 
         monitor.start(queue: queue)
@@ -36,6 +45,7 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin, FlutterS
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         monitor.cancel()
         eventSink = nil
+        lastStatus = nil
         return nil
     }
 

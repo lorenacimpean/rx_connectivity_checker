@@ -103,7 +103,9 @@ class ConnectivityChecker {
         // Prevents rapid fire from manual calls and periodic ticks
         .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
         // Ensures only one network request is active at a time.
-        .exhaustMap((_) => Stream.fromFuture(_performCheck()))
+        .exhaustMap((_) {
+          return Stream.fromFuture(_performCheck());
+        })
         // Provides immediate initial state
         .startWith(ConnectivityStatus.unknown)
         // Maps errors to a connectivity result
