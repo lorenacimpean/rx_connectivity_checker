@@ -1,3 +1,16 @@
+## 1.1.0
+### Added
+* **Federated Architecture**: Transitioned to a federated plugin model, adding native support for **macOS, Windows, and Linux**.
+* **Modern Web Support**: Migrated web implementation to use `package:web` and `dart:js_interop` for WASM compatibility.
+* **Multi-Trigger System**: Added Support for platform-native change events, periodic heartbeats, and manual on-demand checks.
+* **MIT License**: Updated the project license from Apache 2.0 to MIT.
+
+### Changed
+* **Internal Strategy Pattern**: Introduced `ReachabilityValidator` abstraction with conditional imports to improve build-time platform resolution and testability.
+
+### Fixed
+* Corrected an issue where `throttleTime` was unintentionally tied to the `checkFrequency` interval.
+
 ## 0.3.0
 
 ### Added
