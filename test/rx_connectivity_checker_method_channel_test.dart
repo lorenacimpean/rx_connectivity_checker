@@ -4,15 +4,12 @@ import 'package:rx_connectivity_checker/rx_connectivity_checker_method_channel.d
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  late MethodChannelRxConnectivityChecker platform;
-
   const String methodChannelName = 'rx_connectivity_checker';
-
   const String eventChannelName = 'rx_connectivity_checker/events';
-
   const MethodChannel methodChannel = MethodChannel(methodChannelName);
   const MethodChannel eventChannelMethods = MethodChannel(eventChannelName);
+
+  late MethodChannelRxConnectivityChecker platform;
 
   setUp(() {
     platform = MethodChannelRxConnectivityChecker();

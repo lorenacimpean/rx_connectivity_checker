@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:project_starter_kit/common_utils.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interface.dart';
+import 'package:rx_connectivity_checker/src/validators/reachability_validator.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// A robust, reactive service that continuously checks network connectivity
@@ -21,15 +21,16 @@ class ConnectivityChecker {
   final Duration checkFrequency;
   final String _url;
   final bool checkSlowConnection;
-  final IHttpClient _client;
-  final Map<String, String>? headers;
   final RxConnectivityCheckerPlatform _platform;
+  final ReachabilityValidator _validator;
+  final IHttpClient? _client;
+  final Map<String, String>? headers;
 
   // A dedicated subject for manual check triggers.
   late final PublishSubject<bool> _manualCheckTrigger = PublishSubject();
 
-  // The single, cold, multicasting source of truth.
-  // This stream only starts its periodic checks when the first listener subscribes.
+  /// A multicasting stream providing the current [ConnectivityStatus].
+  /// This stream only starts its periodic checks when the first listener subscribes.
   late final Stream<ConnectivityStatus> _internalStream = _buildStream()
       //  Must be last for multicasting to work.
       .shareReplay(maxSize: 1);
@@ -46,14 +47,15 @@ class ConnectivityChecker {
   ConnectivityChecker({
     this.timeout = ConnectivityCheckerConstants.defaultTimeout,
     this.checkFrequency = ConnectivityCheckerConstants.defaultCheckFrequency,
-    String? url,
     this.checkSlowConnection = false,
-    IHttpClient? client,
     this.headers,
+    String? url,
     RxConnectivityCheckerPlatform? platform,
+    IHttpClient? client,
   }) : _url = url ?? ConnectivityCheckerConstants.defaultCheckUrl,
+       _platform = platform ?? RxConnectivityCheckerPlatform.instance,
        _client = client ?? DefaultHttpClient(),
-       _platform = platform ?? RxConnectivityCheckerPlatform.instance;
+       _validator = ReachabilityValidator();
 
   /// A cold, multicasting stream that emits the current [ConnectivityStatus].
   ///
@@ -80,7 +82,7 @@ class ConnectivityChecker {
     return _performCheck();
   }
 
-  // Private method to define the entire, complex stream pipeline.
+  /// Constructs the pipeline for connectivity monitoring.
   Stream<ConnectivityStatus> _buildStream() {
     // Periodic Stream (Cold Trigger)
     final periodicStream = Stream.periodic(checkFrequency, (_) {
@@ -112,29 +114,6 @@ class ConnectivityChecker {
         .onErrorReturn(ConnectivityStatus.unknown);
   }
 
-  // Executes the actual HTTP check against the configured URL.
-  Future<ConnectivityStatus> _callAPI() async {
-    try {
-      final response = await _client
-          .get(Uri.parse(_url), headers: headers)
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return ConnectivityStatus.online;
-      }
-      return ConnectivityStatus.offline;
-    } on TimeoutException {
-      return checkSlowConnection
-          ? ConnectivityStatus.slow
-          : ConnectivityStatus.offline;
-    } on SocketException {
-      return ConnectivityStatus.offline;
-    } catch (e) {
-      DebugLogger.logError('Request failed permanently', e);
-      return ConnectivityStatus.offline;
-    }
-  }
-
   /// Executes the underlying network connectivity check ([_callAPI]), acting as
   /// a **Concurrency Gate** to prevent duplicate API calls.
   ///
@@ -154,15 +133,19 @@ class ConnectivityChecker {
     if (_pendingCheckFuture != null) {
       return _pendingCheckFuture!;
     }
-
     // Initiate a new check and store the future.
-    final future = _callAPI();
+    final future = _validator.validate(
+      url: _url,
+      timeout: timeout,
+      checkSlowConnection: checkSlowConnection,
+      headers: headers,
+      client: _client,
+    );
     _pendingCheckFuture = future;
 
     try {
       // Wait for the API call to complete.
-      final result = await future;
-      return result;
+      return await future;
     } finally {
       // Release the lock when the Future completes (success or failure).
       _pendingCheckFuture = null;

@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 abstract class ConnectivityCheckerConstants {
   /// Connectivity test endpoint used by `ConnectivityChecker`.
   ///
@@ -13,10 +11,7 @@ abstract class ConnectivityCheckerConstants {
   ///
   /// Mobile/Desktop do not enforce CORS, so a faster lightweight
   /// endpoint (`https://www.gstatic.com/generate_204`) is used there.
-  static String defaultCheckUrl = kIsWeb
-      ? "https://api.ipify.org?format=json"
-      : "https://www.gstatic.com/generate_204";
-
+  static String defaultCheckUrl = "https://www.gstatic.com/generate_204";
   static const Duration defaultTimeout = Duration(seconds: 15);
   static const Duration defaultCheckFrequency = Duration(seconds: 15);
   static const Duration defaultThrottleTime = Duration(milliseconds: 300);
