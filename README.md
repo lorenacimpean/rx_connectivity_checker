@@ -44,7 +44,6 @@ flutter pub get
 ```
 ## Usage
 
-# Initialization
 Initialize the checker with a reliable endpoint. Google's generate_204 is the default as it is fast and lightweight.
 ```dart
 final connectivityChecker = ConnectivityChecker(
@@ -53,7 +52,23 @@ final connectivityChecker = ConnectivityChecker(
   checkSlowConnection: true, // Maps timeouts to ConnectivityStatus.slow
 );
 ```
+## Example
+
+You can find a complete, runnable example in the `example` directory. This example demonstrates:
+
+- Implementing a global connectivity listener
+- Handling “Slow Connection” states
+- Using manual triggers for form submissions
+
+### To run the example
+
+```bash
+cd example
+flutter run
+````
+
 # Reactive UI Updates
+
 Use the connectivityStream to update your UI automatically when the network state changes.
 ```dart
 StreamBuilder<ConnectivityStatus>(
