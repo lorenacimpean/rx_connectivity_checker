@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - rx_connectivity_checker (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - rx_connectivity_checker (from `.symlinks/plugins/rx_connectivity_checker/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  rx_connectivity_checker:
+    :path: ".symlinks/plugins/rx_connectivity_checker/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  rx_connectivity_checker: cce87c8ea1050df70b3577a3b5d9ff5fc588e4b2
+
+PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+
+COCOAPODS: 1.16.2

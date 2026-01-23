@@ -127,7 +127,7 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
 
   void _initializeChecker() {
     _checker = ConnectivityChecker(
-      checkFrequency: const Duration(seconds: 5),
+      checkFrequency: const Duration(seconds: 50),
       timeout: const Duration(seconds: 5),
       checkSlowConnection: true,
     );

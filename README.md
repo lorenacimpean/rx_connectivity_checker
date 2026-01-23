@@ -1,160 +1,141 @@
 # rx_connectivity_checker
 
-[![Pub Version](https://img.shields.io/pub/v/rx_connectivity_checker.svg)](https://pub.dev/packages/rx_connectivity_checker)  
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Pub Version](https://img.shields.io/pub/v/rx_connectivity_checker.svg)](https://pub.dev/packages/rx_connectivity_checker)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Android%20|%20iOS%20|%20Linux%20|%20macOS%20|%20Windows-lightgrey)](#)
+[![Pub Points](https://img.shields.io/pub/points/rx_connectivity_checker)](https://pub.dev/packages/rx_connectivity_checker)
 
-A **robust, reactive, and high-performance** Dart/Flutter library for monitoring network
-connectivity via **dedicated HTTP health checks**. Built with **RxDart**, it uses **cold observables
-** and **multicasting** to minimize resource usage and prevent redundant network calls.
+A **robust, reactive, and high-performance** federated Flutter library for monitoring network connectivity.
 
+Beyond monitoring local connection states, this library verifies end-to-end internet access through active network probes. To ensure the connectivity status is always accurate, validation is triggered by three distinct events:
+
+- **Platform Change Events**  
+  A probe is initiated immediately when the system detects a change in the network interface (e.g., switching from Wi-Fi to Cellular).
+
+- **Periodic Polling**  
+  Automated checks occur at a configurable interval to detect “silent” connection losses (e.g., a router losing its uplink while Wi-Fi remains connected).
+
+- **Manual Triggers**  
+  One-off validations can be requested programmatically for critical operations, such as before a high-priority API submission.
+
+## Features
+
+- **Federated Architecture**: Native implementations for **Android, iOS, macOS, Windows, and Linux**.
+- **True Reachability**: Distinguishes between being "connected to a network" and "having internet access."
+- **Performance Optimized**: Minimizes unnecessary network activity and prevents UI instability by avoiding redundant connectivity checks.
+- **Modern Web Support**: WASM-ready using `package:web` and `dart:js_interop` with CORS-safe `no-cors` probes.
+- **Energy Efficient**: Leverages native system observers (`NWPathMonitor`, `ConnectivityManager`, `DBus`) to trigger checks only when necessary.
+- **Cold Observables**: Internal timers and observers only start when the stream has active listeners.
+- **Automatic Periodic Monitoring**: Runs background checks to detect “zombie” connections(cases where the device is connected locally but has no actual internet access).
+- **Manual Check Support**: Offers a checkConnectivity() method to perform an immediate, one-off connectivity check for critical operations, like high-priority API requests.
+- **Testing Friendly**: Supports complete unit testing through dependency injection and configurable reachability strategies, eliminating the need for real network access.
 ---
 
-## What it does:
+## Installation
 
-`rx_connectivity_checker` helps you monitor network connectivity in real time for Dart and
-Flutter apps. You can react to connectivity changes, detect slow connections, and combine immediate
-and continuous connectivity checks.
-
-**Who can use it:**  
-Any Dart or Flutter developer who needs reliable network status detection.  
-**License:** Apache License 2.0 – see the [LICENSE](LICENSE) file for details.
-
----
-
-## ✨ Features
-
-- **Reactive Monitoring**: Provides a `Stream` (`connectivityStream`) for real-time connectivity
-  updates.
-- **Performance Optimized**: Uses `shareReplay` and `exhaustMap` to ensure only one active network
-  request runs at a time, avoiding redundant calls.
-- **Cold Observable**: Network checks only run when the stream is actively subscribed to (e.g.,
-  Flutter `StreamBuilder`).
-- **Service-Level Checks**: Use `checkConnectivity()` for immediate, non-reactive status in services
-  or repositories.
-- **Customizable**: Configure check frequency, timeout, URL, and headers.
-- **Testable & Mockable**: Built on the `IHttpClient` interface for dependency inversion.
-
----
-
-## 🚀 Getting Started
-
-### Dependencies
-
-- [`http`](https://pub.dev/packages/http) for HTTP requests
-- [`rxdart`](https://pub.dev/packages/rxdart) for reactive stream management
-
-### Installation
-
-Add to your `pubspec.yaml`:
+Add `rx_connectivity_checker` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
   rx_connectivity_checker: ^1.0.0
 ```
 
+Then run:
 ```shell
-dart pub add rx_connectivity_checker
+flutter pub get
 ```
+## Usage
 
-Import in your Dart/Flutter code
-
+Initialize the checker with a reliable endpoint. Google's generate_204 is the default as it is fast and lightweight.
 ```dart
-import 'package:rx_connectivity_checker/connectivity_checker.dart';
-```
-
-## Initialization
-
-```dart
-
 final connectivityChecker = ConnectivityChecker(
-  url: 'https://api.my-service.com/health', // Custom health check endpoint
-  checkFrequency: const Duration(seconds: 30), // Periodic check interval
-  timeout: const Duration(seconds: 5), // Quick failure detection
-  checkSlowConnection: true, // Treat timeouts as 'slow'
+  url: '[https://connectivitycheck.gstatic.com/generate_204](https://connectivitycheck.gstatic.com/generate_204)', 
+  checkFrequency: const Duration(seconds: 30),
+  checkSlowConnection: true, // Maps timeouts to ConnectivityStatus.slow
 );
 ```
+## Example
 
-## Environment & SDK Constraints
+You can find a complete, runnable example in the `example` directory. This example demonstrates:
 
-```yaml
-environment:
-  sdk: '>=3.9.2 <4.0.0'
-```
+- Implementing a global connectivity listener
+- Handling “Slow Connection” states
+- Using manual triggers for form submissions
 
-This package requires Dart SDK >=3.2.0 <4.0.0 (as specified in [pubspec.yaml](pubspec.yaml)).
+### To run the example
 
-## 📌 Usage
+```bash
+cd example
+flutter run
+````
 
-### 1. Reactive UI (Flutter StreamBuilder)
+# Reactive UI Updates
 
-import 'package:flutter/material.dart';
-import 'package:rx_connectivity_checker/network_status.dart';
-
-``` dart
-import 'package:flutter/material.dart';
-import 'package:rx_connectivity_checker/network_status.dart';
-
-StreamBuilder<ConnectivityResult>(
+Use the connectivityStream to update your UI automatically when the network state changes.
+```dart
+StreamBuilder<ConnectivityStatus>(
   stream: connectivityChecker.connectivityStream,
-  initialData: ConnectivityResult.unknown,
+  initialData: ConnectivityStatus.unknown,
   builder: (context, snapshot) {
-    switch (snapshot.data) {
-      case ConnectivityResult.online:
-        return const Text('🟢 Online!');
-      case ConnectivityResult.offline:
-        return const Text('🔴 Offline.');
-      case ConnectivityResult.slow:
-        return const Text('🟡 Slow connection');
-      default:
-        return Text('Status: ${snapshot.data}');
-    }
+    final status = snapshot.data ?? ConnectivityStatus.unknown;
+    
+    return Column(
+      children: [
+        Icon(
+          status == ConnectivityStatus.online ? Icons.wifi : Icons.wifi_off,
+          color: status == ConnectivityStatus.online ? Colors.green : Colors.red,
+        ),
+        Text('Status: ${status.name}'),
+      ],
+    );
   },
 )
-
 ```
-
-### Examples
-
-``` dart
-void main() {
-final checker = ConnectivityChecker(url: 'https://api.my-service.com/health');
-
-checker.connectivityStream.listen((status) {
-print('Current status: $status');
-});
+# Manual One-Off Checks
+For critical actions (like submitting a form), perform an immediate check:
+```dart
+final status = await connectivityChecker.checkConnectivity();
+if (status == ConnectivityStatus.online) {
+  await apiService.uploadData();
 }
 ```
+# Platform Support & Mechanisms
+The library uses native platform features to provide fast and reliable detection of network connectivity changes:
 
-### Immediate Check (Service/Repository Layer)
+| Platform | Mechanism | Details |
+| :--- | :--- | :--- |
+| **Android** | `ConnectivityManager` | Uses `NetworkCallback` for real-time state tracking. |
+| **iOS / macOS** | `NWPathMonitor` | Native Swift implementation with event deduplication. |
+| **Linux** | `DBus` / `NetworkManager` | Monitors system signals via the D-Bus bus. |
+| **Windows** | `INetworkListManager` | C++ COM Interop for high-performance desktop tracking. |
+| **Web** | `fetch` API | Uses `no-cors` mode to bypass browser security blocks. |
 
-```dart 
-import 'package:rx_connectivity_checker/connectivity_status.dart';
+---
+##  Important Notes
 
-Future<User> fetchUserData(String userId) async {
-// 1. Check connectivity immediately
-  final status = await connectivityChecker.checkConnectivity();
+### macOS Sandboxing
+For macOS apps, you must enable the network entitlement in `DebugProfile.entitlements` and `Release.entitlements`:
 
-  if (status != ConnectivityResult.online) {
-    throw Exception('Not connected to the internet.');
-  }
-
-// 2. Proceed with API call
-  return _apiClient.getUser(userId);
-}
+```xml
+<key>com.apple.security.network.client</key>
+<true/>
 ```
+### Android Permissions
+Ensure your AndroidManifest.xml includes the necessary permissions to monitor network state and access the internet:
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
+### Windows Requirements
 
-## ℹ️ Notes & Advanced Usage
+The Windows implementation relies on COM Interop. While no specific manifest changes are required for standard Win32 apps, ensure your build environment supports C++17 or later. For MSIX/Packaged apps, the internetClient capability must be declared in the Package.appxmanifest.
 
-- Forward Streams: connectivityStream can be forwarded to other streams or state management
-  solutions (e.g., Bloc, Riverpod) for centralized connectivity tracking.
+### Linux Dependencies
 
-- Single Active Request: Ensures only one network check is active at a time, even with multiple
-  subscribers.
+The Linux implementation monitors system signals via DBus. Most modern distributions (Ubuntu, Fedora, etc.) have NetworkManager installed by default, which is required for this package to receive real-time interface change events.
 
-- Combine Immediate & Continuous Checks: Use checkConnectivity() for instant status alongside
-  connectivityStream for reactive updates.
+### CORS on Web
+The web implementation uses mode: no-cors. This allows the reachability probe to succeed even if the target server does not send CORS headers, as the validator only checks for the presence of a response, not the content.
 
-## 🤝 Contributing
-
-- Issues: File any bugs on the GitHub repository's issue tracker.
-- Pull Requests: Contributions are welcome! Include clear commit messages and unit tests.
+# Contributing
+Contributions are welcome! If you encounter issues or have feature requests, please file them on the GitHub Issue Tracker.
