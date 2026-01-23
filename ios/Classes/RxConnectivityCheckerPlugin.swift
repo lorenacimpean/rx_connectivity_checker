@@ -30,11 +30,11 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin {
 
     /// Sets up the MethodChannel and EventChannel.
     private func setupChannels(with registrar: FlutterPluginRegistrar) {
-        // 1. Setup MethodChannel for one-off requests
+        // Setup MethodChannel for one-off requests
         methodChannel = FlutterMethodChannel(name: SwiftRxConnectivityCheckerPlugin.channelName, binaryMessenger: registrar.messenger())
         registrar.addMethodCallDelegate(self, channel: methodChannel!)
 
-        // 2. Setup EventChannel for continuous network monitoring
+        // Setup EventChannel for continuous network monitoring
         // logic: "$CHANNEL_NAME/events"
         let eventChannelName = "\(SwiftRxConnectivityCheckerPlugin.channelName)/events"
         eventChannel = FlutterEventChannel(name: eventChannelName, binaryMessenger: registrar.messenger())
@@ -44,7 +44,6 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin {
     }
 
     /// Handles method calls from the Dart side.
-    ///
     /// Currently supports:
     /// - `getPlatformVersion`: Returns the iOS system version.
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -65,7 +64,6 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin {
 }
 
 /// A specialized handler that manages the iOS `NWPathMonitor` callbacks.
-///
 /// This class adheres to the Single Responsibility Principle (SRP) by isolating
 /// the network monitoring logic from the plugin lifecycle.
 class ConnectivityStreamHandler: NSObject, FlutterStreamHandler {
@@ -84,7 +82,6 @@ class ConnectivityStreamHandler: NSObject, FlutterStreamHandler {
 
     /**
      * Called when the Flutter side subscribes to the stream.
-     *
      * @param arguments Arguments passed from Dart.
      * @param events The sink to send events to.
      */
@@ -128,7 +125,6 @@ class ConnectivityStreamHandler: NSObject, FlutterStreamHandler {
 
     /**
      * Called when the Flutter side cancels the subscription.
-     *
      * We stop the monitor to save battery and resources.
      */
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
@@ -140,7 +136,6 @@ class ConnectivityStreamHandler: NSObject, FlutterStreamHandler {
 
     /**
      * Helper method to post events to the Main Thread safely.
-     *
      * Flutter Platform Channels MUST be communicated with on the Main Thread,
      * but NWPathMonitor runs on a background queue.
      */

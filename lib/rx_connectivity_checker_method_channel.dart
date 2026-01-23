@@ -24,7 +24,7 @@ class MethodChannelRxConnectivityChecker extends RxConnectivityCheckerPlatform {
   /// 2. Handles generic PlatformExceptions gracefully.
   @override
   Stream<String> get platformStatusStream {
-    // Optimization: Initialize the stream only once (Lazy Loading)
+    // Initialize the stream only once
     _onConnectivityChanged ??= eventChannel
         .receiveBroadcastStream()
         .map((dynamic event) => event.toString())
@@ -38,6 +38,10 @@ class MethodChannelRxConnectivityChecker extends RxConnectivityCheckerPlatform {
     return _onConnectivityChanged!;
   }
 
+  /// Retrieves the running platform's version string.
+  ///
+  /// This method invokes the platform-specific `'getPlatformVersion'` method via
+  /// the [methodChannel].
   @override
   Future<String?> getPlatformVersion() async {
     try {
@@ -46,8 +50,6 @@ class MethodChannelRxConnectivityChecker extends RxConnectivityCheckerPlatform {
       );
       return version;
     } on PlatformException catch (e) {
-      // Adhering to KISS: Log the error and return null, allowing the UI
-      // to handle the "unknown" state rather than crashing.
       debugPrint(
         'RxConnectivityChecker: Failed to get platform version: ${e.message}',
       );

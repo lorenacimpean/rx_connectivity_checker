@@ -130,12 +130,12 @@ Ensure your AndroidManifest.xml includes the necessary permissions to monitor ne
 
 The Windows implementation relies on COM Interop. While no specific manifest changes are required for standard Win32 apps, ensure your build environment supports C++17 or later. For MSIX/Packaged apps, the internetClient capability must be declared in the Package.appxmanifest.
 
-
 ### Linux Dependencies
 
 The Linux implementation monitors system signals via DBus. Most modern distributions (Ubuntu, Fedora, etc.) have NetworkManager installed by default, which is required for this package to receive real-time interface change events.
 
 ### CORS on Web
 The web implementation uses mode: no-cors. This allows the reachability probe to succeed even if the target server does not send CORS headers, as the validator only checks for the presence of a response, not the content.
+
 # Contributing
 Contributions are welcome! If you encounter issues or have feature requests, please file them on the GitHub Issue Tracker.

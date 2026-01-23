@@ -6,21 +6,25 @@ import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interfa
 import 'package:rx_connectivity_checker/src/validators/reachability_validator.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// A robust, reactive service that continuously checks network connectivity
-/// by attempting to access a specific URL.
+/// A reactive service that monitors internet connectivity by validating access to a remote URL.
 ///
-/// This service provides two methods for checking connectivity: a primary
-/// [connectivityStream] for reactive state management, and a [checkConnectivity]
-/// method for one-off checks.
-///
-/// The service uses internal throttling and multicasting (`shareReplay`)
-/// to ensure only one network request is active at any time, preventing
-/// resource waste and redundant calls.
+/// This service combines periodic polling, native platform updates, and manual triggers
+/// to provide a robust stream of [ConnectivityStatus] updates. It employs throttling
+/// and request concurrency control to minimize resource usage.
 class ConnectivityChecker {
+  /// The maximum duration to wait for a connectivity check response.
   final Duration timeout;
+
+  /// The interval between periodic background connectivity checks.
   final Duration checkFrequency;
+
+  /// The URL used to validate internet access.
   final String _url;
+
+  /// Whether a connection timeout should be reported as [ConnectivityStatus.slow]
+  /// instead of [ConnectivityStatus.offline].
   final bool checkSlowConnection;
+
   final RxConnectivityCheckerPlatform _platform;
   final ReachabilityValidator _validator;
   final IHttpClient? _client;
@@ -29,16 +33,15 @@ class ConnectivityChecker {
   // A dedicated subject for manual check triggers.
   late final PublishSubject<bool> _manualCheckTrigger = PublishSubject();
 
-  /// A multicasting stream providing the current [ConnectivityStatus].
-  /// This stream only starts its periodic checks when the first listener subscribes.
+  // Internal multicasting stream.
   late final Stream<ConnectivityStatus> _internalStream = _buildStream()
-      //  Must be last for multicasting to work.
       .shareReplay(maxSize: 1);
+
   Future<ConnectivityStatus>? _pendingCheckFuture;
 
   /// Creates a [ConnectivityChecker] instance.
   ///
-  /// - [timeout]: The maximum time to wait for the connectivity check request.
+  /// - [timeout]: The maximum time to wait for the connectivity check request response.
   /// - [checkFrequency]: The interval at which the background check should occur.
   /// - [url]: The URL used for the connectivity check (defaults to a reliable external source).
   /// - [checkSlowConnection]: If true, a [TimeoutException] is mapped to
@@ -57,34 +60,31 @@ class ConnectivityChecker {
        _client = client ?? DefaultHttpClient(),
        _validator = ReachabilityValidator();
 
-  /// A cold, multicasting stream that emits the current [ConnectivityStatus].
+  /// A shared stream of [ConnectivityStatus] updates.
   ///
-  /// The stream is **cold** (network checks only run when subscribed) and
-  /// **multicasting** (the expensive periodic check runs only once, sharing
-  /// results with all listeners).
+  /// This stream is **cold** (starts polling only on subscription) and **multicast**
+  /// (shares a single subscription source among multiple listeners).
   ///
-  /// The stream provides an immediate result of [ConnectivityStatus.unknown]
-  /// upon subscription, followed by the actual state. It only emits a new value
-  /// when the connectivity status changes.
+  /// Emits [ConnectivityStatus.unknown] immediately upon subscription, followed
+  /// by the actual status.
   Stream<ConnectivityStatus> get connectivityStream => _internalStream;
 
-  /// Performs a manual, one-off connectivity check and updates the
-  /// [connectivityStream] for all listeners.
+  /// triggers an immediate connectivity check and updates [connectivityStream].
   ///
-  /// This method is gated by internal concurrency control: if a check is already
-  /// running (periodic or manual), it will wait for the current check's result
-  /// instead of starting a new network request.
+  /// Returns a [Future] that completes with the result of the check.
   ///
-  /// Returns the immediate result of the connectivity check.
+  /// If a check (periodic or manual) is already in progress, this method awaits
+  /// the existing check rather than starting a new one.
   Future<ConnectivityStatus> checkConnectivity() async {
-    // Triggers the stream and returns the result of the immediate check.
     _manualCheckTrigger.add(true);
     return _performCheck();
   }
 
-  /// Constructs the pipeline for connectivity monitoring.
+  /// Composes the connectivity monitoring pipeline.
+  ///
+  /// Merges periodic timers, manual triggers, and native platform events into
+  /// a single stream that performs actual network validation.
   Stream<ConnectivityStatus> _buildStream() {
-    // Periodic Stream (Cold Trigger)
     final periodicStream = Stream.periodic(checkFrequency, (_) {
       DebugLogger.log('Periodic check triggered');
       return true;
@@ -100,40 +100,19 @@ class ConnectivityChecker {
       return true;
     });
 
-    // Merge all triggers (Periodic + Manual)
     return Rx.merge([periodicStream, manualStream, nativeStream])
-        // Prevents rapid fire from manual calls and periodic ticks
         .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
-        // Ensures only one network request is active at a time.
-        .exhaustMap((_) {
-          return Stream.fromFuture(_performCheck());
-        })
-        // Provides immediate initial state
+        .exhaustMap((_) => Stream.fromFuture(_performCheck()))
         .startWith(ConnectivityStatus.unknown)
-        // Maps errors to a connectivity result
         .onErrorReturn(ConnectivityStatus.unknown);
   }
 
-  /// Executes the underlying network connectivity check ([_callAPI]), acting as
-  /// a **Concurrency Gate** to prevent duplicate API calls.
-  ///
-  /// This method implements the **Check-Then-Act** pattern using the private
-  /// [_pendingCheckFuture] lock.
-  ///
-  /// If multiple threads or stream events trigger this method simultaneously:
-  /// 1. The first call executes [_callAPI()] and sets [_pendingCheckFuture].
-  /// 2. Subsequent concurrent calls immediately return the stored [_pendingCheckFuture],
-  ///    ensuring only one active network request is ever launched at a time.
-  ///
-  /// Once the internal API call completes (either successfully or with an error),
-  /// the [_pendingCheckFuture] lock is released in the `finally` block, allowing
-  /// subsequent checks to proceed.
+  /// Executes the network validation logic, ensuring only one check runs at a time.
   Future<ConnectivityStatus> _performCheck() async {
-    // If a check is already running, return the existing Future.
     if (_pendingCheckFuture != null) {
       return _pendingCheckFuture!;
     }
-    // Initiate a new check and store the future.
+
     final future = _validator.validate(
       url: _url,
       timeout: timeout,
@@ -144,10 +123,8 @@ class ConnectivityChecker {
     _pendingCheckFuture = future;
 
     try {
-      // Wait for the API call to complete.
       return await future;
     } finally {
-      // Release the lock when the Future completes (success or failure).
       _pendingCheckFuture = null;
     }
   }

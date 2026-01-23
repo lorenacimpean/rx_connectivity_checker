@@ -6,9 +6,6 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin, FlutterS
     private var eventSink: FlutterEventSink?
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "RxConnectivityMonitor")
-
-    /// Optimization: This variable must be declared here to be in scope.
-    /// It tracks the last emitted status to prevent duplicate events across the bridge.
     private var lastStatus: String?
 
     public static func register(with registrar: FlutterPluginRegistrar) {

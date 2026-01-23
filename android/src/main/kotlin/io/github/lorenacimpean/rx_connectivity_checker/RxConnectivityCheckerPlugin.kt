@@ -45,11 +45,11 @@ class RxConnectivityCheckerPlugin : FlutterPlugin, MethodCallHandler {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
 
-        // 1. Setup MethodChannel for one-off requests
+        // Setup MethodChannel for one-off requests
         methodChannel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
         methodChannel.setMethodCallHandler(this)
 
-        // 2. Setup EventChannel for continuous network monitoring
+        // Setup EventChannel for continuous network monitoring
         eventChannel = EventChannel(binding.binaryMessenger, "$CHANNEL_NAME/events")
         eventChannel.setStreamHandler(ConnectivityStreamHandler(context))
     }
