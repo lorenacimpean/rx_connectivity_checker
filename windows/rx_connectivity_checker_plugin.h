@@ -1,31 +1,50 @@
-#ifndef FLUTTER_PLUGIN_RX_CONNECTIVITY_CHECKER_PLUGIN_H_
-#define FLUTTER_PLUGIN_RX_CONNECTIVITY_CHECKER_PLUGIN_H_
-
-#include <flutter/method_channel.h>
-#include <flutter/plugin_registrar_windows.h>
-
+#include <flutter/event_channel.h>
+#include <flutter/event_sink.h>
+#include <flutter/standard_method_codec.h>
 #include <memory>
 
 namespace rx_connectivity_checker {
 
-class RxConnectivityCheckerPlugin : public flutter::Plugin {
- public:
-  static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
+    class ConnectivityStreamHandler : public flutter::StreamHandler<flutter::EncodableValue> {
+    public:
+        ConnectivityStreamHandler() = default;
+        virtual ~ConnectivityStreamHandler() = default;
 
-  RxConnectivityCheckerPlugin();
+        /// Called when a client starts listening to the EventChannel.
+        ///
+        /// - [arguments]: Optional arguments passed from Dart when subscribing.
+        /// - [events]: The EventSink used to send events back to Dart.
+        ///
+        /// Returns nullptr on success, or a StreamHandlerError on failure.
+        std::unique_ptr<flutter::StreamHandlerError> OnListen(
+                const flutter::EncodableValue* arguments,
+                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
+            // Store the sink to send events later
+            event_sink_ = std::move(events);
 
-  virtual ~RxConnectivityCheckerPlugin();
+            // Optional: send initial connectivity state
+            if (event_sink_) {
+                flutter::EncodableValue initial_value("connected"); // example
+                event_sink_->Success(initial_value);
+            }
 
-  // Disallow copy and assign.
-  RxConnectivityCheckerPlugin(const RxConnectivityCheckerPlugin&) = delete;
-  RxConnectivityCheckerPlugin& operator=(const RxConnectivityCheckerPlugin&) = delete;
+            return nullptr; // nullptr = success
+        }
 
-  // Called when a method is called on this plugin's channel from Dart.
-  void HandleMethodCall(
-      const flutter::MethodCall<flutter::EncodableValue> &method_call,
-      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
-};
+        /// Called when a client cancels their subscription to the EventChannel.
+        ///
+        /// - [arguments]: Optional arguments passed from Dart when canceling.
+        ///
+        /// Returns nullptr on success, or a StreamHandlerError on failure.
+        std::unique_ptr<flutter::StreamHandlerError> OnCancel(
+                const flutter::EncodableValue* arguments) override {
+            // Release the sink
+            event_sink_ = nullptr;
+            return nullptr;
+        }
 
-}  // namespace rx_connectivity_checker
+    private:
+        std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> event_sink_;
+    };
 
-#endif  // FLUTTER_PLUGIN_RX_CONNECTIVITY_CHECKER_PLUGIN_H_
+} // namespace rx_connectivity_checker
