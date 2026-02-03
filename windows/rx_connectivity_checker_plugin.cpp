@@ -20,7 +20,7 @@ namespace rx_connectivity_checker {
 /// Adheres to the Observer Pattern by bridging OS callbacks to Flutter.
     class ConnectivitySink : public INetworkListManagerEvents {
     public:
-        ConnectivitySink(std::unique_ptr<flutter::StreamSink<flutter::EncodableValue>> sink)
+        ConnectivitySink(std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink)
                 : sink_(std::move(sink)), ref_count_(1) {}
 
         // INetworkListManagerEvents Implementation
@@ -53,7 +53,7 @@ namespace rx_connectivity_checker {
         }
 
     private:
-        std::unique_ptr<flutter::StreamSink<flutter::EncodableValue>> sink_;
+        std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
         long ref_count_;
     };
 
@@ -62,26 +62,27 @@ namespace rx_connectivity_checker {
         ConnectivityStreamHandler() {}
 
     protected:
-        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
+        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListen(
                 const flutter::EncodableValue* arguments,
-                std::unique_ptr<flutter::StreamSink<flutter::EncodableValue>> events) override {
+                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
 
-            // Initialize COM for the current thread
             HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-            // Create the Network List Manager instance
-            hr = CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL, IID_INetworkListManager, &network_manager_);
+            hr = CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL,
+                    IID_INetworkListManager, &network_manager_);
 
             if (SUCCEEDED(hr)) {
                 sink_obj_ = new ConnectivitySink(std::move(events));
 
-                // Establish the connection point for events (Observer Pattern)
                 ComPtr<IConnectionPointContainer> container;
-                network_manager_.As(&container);
-                container->FindConnectionPoint(IID_INetworkListManagerEvents, &connection_point_);
-                connection_point_->Advice(sink_obj_, &cookie_);
+                if (SUCCEEDED(network_manager_.As(&container))) {
+                    if (SUCCEEDED(container->FindConnectionPoint(IID_INetworkListManagerEvents, &connection_point_))) {
+                        connection_point_->Advice(sink_obj_, &cookie_);
+                        // Correctly balance the 'new' reference
+                        sink_obj_->Release();
+                    }
+                }
 
-                // Push initial state immediately
                 NLM_CONNECTIVITY connectivity;
                 if (SUCCEEDED(network_manager_->GetConnectivity(&connectivity))) {
                     sink_obj_->ConnectivityChanged(connectivity);
@@ -90,13 +91,17 @@ namespace rx_connectivity_checker {
             return nullptr;
         }
 
-        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
+        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancel(
                 const flutter::EncodableValue* arguments) override {
             if (connection_point_) {
                 connection_point_->Unadvise(cookie_);
                 connection_point_.Reset();
+                cookie_ = 0;
             }
             network_manager_.Reset();
+            sink_obj_ = nullptr; // The object will delete itself now
+
+            CoUninitialize(); // Balance the initialization
             return nullptr;
         }
 
