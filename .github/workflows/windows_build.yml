@@ -3,7 +3,7 @@ name: Windows Build Check
 on:
   push:
     branches:
-      - '**'        # Matches every branch
+      - '**'
   pull_request:
     branches:
       - '**'
@@ -15,16 +15,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      - name: Install dependencies
+      - name: Doctor
+        run: flutter doctor -v
+
+      - name: Install dependencies (root)
+        run: flutter pub get
+
+      - name: Install dependencies (example)
+        working-directory: example
         run: flutter pub get
 
       - name: Build Windows
-        run: |
-          cd example
-          flutter build windows --debug
+        working-directory: example
+        run: flutter build windows --debug --verbose

@@ -66,22 +66,23 @@ namespace rx_connectivity_checker {
                 const flutter::EncodableValue* arguments,
                 std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
 
-            // Initialize COM for the current thread
             HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-            // Create the Network List Manager instance
-            hr = CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL, IID_INetworkListManager, &network_manager_);
+            hr = CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL,
+                    IID_INetworkListManager, &network_manager_);
 
             if (SUCCEEDED(hr)) {
                 sink_obj_ = new ConnectivitySink(std::move(events));
 
-                // Establish the connection point for events (Observer Pattern)
                 ComPtr<IConnectionPointContainer> container;
-                network_manager_.As(&container);
-                container->FindConnectionPoint(IID_INetworkListManagerEvents, &connection_point_);
-                connection_point_->Advice(sink_obj_, &cookie_);
+                if (SUCCEEDED(network_manager_.As(&container))) {
+                    if (SUCCEEDED(container->FindConnectionPoint(IID_INetworkListManagerEvents, &connection_point_))) {
+                        connection_point_->Advice(sink_obj_, &cookie_);
+                        // Correctly balance the 'new' reference
+                        sink_obj_->Release();
+                    }
+                }
 
-                // Push initial state immediately
                 NLM_CONNECTIVITY connectivity;
                 if (SUCCEEDED(network_manager_->GetConnectivity(&connectivity))) {
                     sink_obj_->ConnectivityChanged(connectivity);
@@ -95,8 +96,12 @@ namespace rx_connectivity_checker {
             if (connection_point_) {
                 connection_point_->Unadvise(cookie_);
                 connection_point_.Reset();
+                cookie_ = 0;
             }
             network_manager_.Reset();
+            sink_obj_ = nullptr; // The object will delete itself now
+
+            CoUninitialize(); // Balance the initialization
             return nullptr;
         }
 
