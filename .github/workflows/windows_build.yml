@@ -16,6 +16,11 @@ jobs:
       - name: Enable long paths
         run: git config --system core.longpaths true
 
+      # ✅ Setup MSVC / C++ toolchain
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # ✅ Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -39,4 +44,4 @@ jobs:
 
       - name: Build Windows Example
         working-directory: example
-        run: flutter build windows --debug --verbose
+        run: flutter build windows --release --verbose
