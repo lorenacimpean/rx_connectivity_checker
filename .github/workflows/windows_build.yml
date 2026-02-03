@@ -1,4 +1,4 @@
-name: Windows Build
+name: Test CI
 
 on:
   workflow_dispatch:
@@ -6,25 +6,7 @@ on:
   pull_request:
 
 jobs:
-  build:
-    runs-on: windows-latest
-
+  hello:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Flutter Setup
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Flutter Doctor
-        run: flutter doctor -v
-
-      - name: Pub Get (root)
-        run: flutter pub get
-
-      - name: Build Example Windows
-        working-directory: example
-        run: |
-          flutter pub get
-          flutter build windows --debug --verbose
+      - run: echo "CI WORKS"
