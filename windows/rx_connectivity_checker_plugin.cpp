@@ -16,24 +16,19 @@ namespace rx_connectivity_checker {
 
     using Microsoft::WRL::ComPtr;
 
-/// COM Sink class that listens for Network List Manager events.
-/// Adheres to the Observer Pattern by bridging OS callbacks to Flutter.
     class ConnectivitySink : public INetworkListManagerEvents {
     public:
         ConnectivitySink(std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink)
                 : sink_(std::move(sink)), ref_count_(1) {}
 
-        // INetworkListManagerEvents Implementation
         STDMETHODIMP ConnectivityChanged(NLM_CONNECTIVITY new_connectivity) override {
             if (sink_) {
-                // Check for IPv4 or IPv6 internet connectivity
                 bool is_satisfied = (new_connectivity & (NLM_CONNECTIVITY_IPV4_INTERNET | NLM_CONNECTIVITY_IPV6_INTERNET)) != 0;
                 sink_->Success(flutter::EncodableValue(is_satisfied ? "satisfied" : "unsatisfied"));
             }
             return S_OK;
         }
 
-        // IUnknown Implementation
         STDMETHODIMP QueryInterface(REFIID riid, void** ppv) override {
             if (riid == IID_IUnknown || riid == IID_INetworkListManagerEvents) {
                 *ppv = static_cast<INetworkListManagerEvents*>(this);
@@ -62,14 +57,13 @@ namespace rx_connectivity_checker {
         ConnectivityStreamHandler() {}
 
     protected:
+        // FIX: Removed '&&' to match base class signature
         std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListen(
                 const flutter::EncodableValue* arguments,
-                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
+                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> events) override {
 
             HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-
-            hr = CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL,
-                    IID_INetworkListManager, &network_manager_);
+            hr = CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL, IID_INetworkListManager, &network_manager_);
 
             if (SUCCEEDED(hr)) {
                 sink_obj_ = new ConnectivitySink(std::move(events));
@@ -77,8 +71,9 @@ namespace rx_connectivity_checker {
                 ComPtr<IConnectionPointContainer> container;
                 if (SUCCEEDED(network_manager_.As(&container))) {
                     if (SUCCEEDED(container->FindConnectionPoint(IID_INetworkListManagerEvents, &connection_point_))) {
-                        connection_point_->Advice(sink_obj_, &cookie_);
-                        // Correctly balance the 'new' reference
+                        // FIX: 'Advise' (with an 's') is the correct COM method
+                        connection_point_->Advise(sink_obj_, &cookie_);
+                        // Relinquish the 'new' reference so the connection point owns it
                         sink_obj_->Release();
                     }
                 }
@@ -99,9 +94,9 @@ namespace rx_connectivity_checker {
                 cookie_ = 0;
             }
             network_manager_.Reset();
-            sink_obj_ = nullptr; // The object will delete itself now
+            sink_obj_ = nullptr;
 
-            CoUninitialize(); // Balance the initialization
+            CoUninitialize();
             return nullptr;
         }
 
@@ -151,4 +146,4 @@ namespace rx_connectivity_checker {
         }
     }
 
-}//namespace rx_connectivity_checker
+} // namespace rx_connectivity_checker
