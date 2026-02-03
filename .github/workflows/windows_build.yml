@@ -1,0 +1,30 @@
+name: Windows Build Check
+
+on:
+  push:
+    branches:
+      - '**'        # Matches every branch
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows
+        run: |
+          cd example
+          flutter build windows --debug
