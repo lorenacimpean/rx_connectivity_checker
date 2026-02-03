@@ -1,12 +1,9 @@
-name: Windows Build Check
+name: Windows Build
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - '**'
   pull_request:
-    branches:
-      - '**'
 
 jobs:
   build:
@@ -15,25 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Enable long paths
-        run: git config --system core.longpaths true
-
-      - name: Install Flutter
+      - name: Flutter Setup
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
-      - name: Doctor
+      - name: Flutter Doctor
         run: flutter doctor -v
 
-      - name: Install dependencies (root)
+      - name: Pub Get (root)
         run: flutter pub get
 
-      - name: Install dependencies (example)
+      - name: Build Example Windows
         working-directory: example
-        run: flutter pub get
-
-      - name: Build Windows
-        working-directory: example
-        run: flutter build windows --debug --verbose
+        run: |
+          flutter pub get
+          flutter build windows --debug --verbose
