@@ -20,7 +20,7 @@ namespace rx_connectivity_checker {
 /// Adheres to the Observer Pattern by bridging OS callbacks to Flutter.
     class ConnectivitySink : public INetworkListManagerEvents {
     public:
-        ConnectivitySink(std::unique_ptr<flutter::StreamSink<flutter::EncodableValue>> sink)
+        ConnectivitySink(std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink)
                 : sink_(std::move(sink)), ref_count_(1) {}
 
         // INetworkListManagerEvents Implementation
@@ -53,7 +53,7 @@ namespace rx_connectivity_checker {
         }
 
     private:
-        std::unique_ptr<flutter::StreamSink<flutter::EncodableValue>> sink_;
+        std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
         long ref_count_;
     };
 
@@ -62,9 +62,9 @@ namespace rx_connectivity_checker {
         ConnectivityStreamHandler() {}
 
     protected:
-        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
+        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListen(
                 const flutter::EncodableValue* arguments,
-                std::unique_ptr<flutter::StreamSink<flutter::EncodableValue>> events) override {
+                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override {
 
             // Initialize COM for the current thread
             HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -90,7 +90,7 @@ namespace rx_connectivity_checker {
             return nullptr;
         }
 
-        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
+        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancel(
                 const flutter::EncodableValue* arguments) override {
             if (connection_point_) {
                 connection_point_->Unadvise(cookie_);
