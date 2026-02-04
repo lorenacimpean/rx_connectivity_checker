@@ -8,8 +8,8 @@ RxConnectivityCheckerPlugin::RxConnectivityCheckerPlugin() = default;
 
 RxConnectivityCheckerPlugin::~RxConnectivityCheckerPlugin() = default;
 
-void RxConnectivityCheckerPlugin::RegisterWithRegistrar(
-        flutter::PluginRegistrarWindows* registrar) {
+void RxConnectivityCheckerPluginRegisterWithRegistrar(
+        FlutterDesktopPluginRegistrarRef registrar) {
 
     auto plugin = std::make_unique<RxConnectivityCheckerPlugin>();
 

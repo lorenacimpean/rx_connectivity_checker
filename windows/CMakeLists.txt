@@ -1,26 +1,21 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.14)
 
-# Plugin name
-set(PROJECT_NAME "rx_connectivity_checker")
+# Project name
+project(rx_connectivity_checker LANGUAGES CXX)
 
-project(${PROJECT_NAME} LANGUAGES CXX)
+# Plugin library name
+set(PLUGIN_NAME rx_connectivity_checker_plugin)
 
-# Flutter-managed config (REQUIRED)
-include(flutter/generated_plugins.cmake)
-
-# Plugin target name
-set(PLUGIN_NAME ${PROJECT_NAME}_plugin)
-
-# Sources
+# Build library
 add_library(${PLUGIN_NAME} SHARED
         "rx_connectivity_checker_plugin.cpp"
         "connectivity_stream_handler.cpp"
 )
 
-# Standard Flutter settings
+# Apply Flutter standard settings
 apply_standard_settings(${PLUGIN_NAME})
 
-# C++ Standard
+# C++ standard
 set_target_properties(${PLUGIN_NAME} PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED YES
@@ -32,7 +27,7 @@ target_include_directories(${PLUGIN_NAME} PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-# Link Flutter + Windows
+# Link Flutter
 target_link_libraries(${PLUGIN_NAME} PRIVATE
         flutter
         flutter_wrapper_plugin
@@ -40,4 +35,7 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
 )
 
 # Register plugin
-flutter_add_plugin(${PLUGIN_NAME})
+set(rx_connectivity_checker_bundled_libraries
+        ""
+        PARENT_SCOPE
+)
