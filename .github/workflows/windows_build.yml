@@ -1,8 +1,7 @@
-name: Windows Build
+name: Test Flutter Windows Build
 
 on:
   workflow_dispatch:
-  push:
 
 jobs:
   build:
@@ -10,48 +9,24 @@ jobs:
 
     steps:
       # 1️⃣ Checkout code
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 2️⃣ Enable long paths (needed for Windows)
-      - name: Enable long paths
-        run: git config --system core.longpaths true
-
-      # 3️⃣ Setup MSVC / C++ toolchain
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-
-      # 4️⃣ Setup Flutter
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      # 2️⃣ Setup Flutter (latest stable, no specific version)
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
-      # 5️⃣ Flutter doctor for debugging
-      - name: Flutter Doctor
-        run: flutter doctor -v
+      # 3️⃣ Precache Windows artifacts
+      - run: flutter precache --windows
 
-      # ---- Root package ----
-      - name: Pub Get (root)
-        run: flutter pub get
+      # 4️⃣ Get dependencies
+      - run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      # 5️⃣ Clean build
+      - run: flutter clean
 
-      # ---- Example app ----
-      - name: Pub Get (example)
-        working-directory: example
-        run: flutter pub get
+      # 6️⃣ Get dependencies again to regenerate ephemeral/plugin files
+      - run: flutter pub get
 
-      - name: Clean Windows build
-        working-directory: example
-        run: flutter clean
-
-      - name: Pub Get (example, after clean)
-        working-directory: example
-        run: flutter pub get
-
-      - name: Build Windows Example
-        working-directory: example
-        run: flutter build windows --release
+      # 7️⃣ Build Windows app (release)
+      - run: flutter build windows --release

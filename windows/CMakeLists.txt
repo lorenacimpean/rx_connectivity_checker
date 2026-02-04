@@ -39,5 +39,5 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
         windowsapp
 )
 
-# Register plugin (NOW this will work)
+# Register plugin
 flutter_add_plugin(${PLUGIN_NAME})
