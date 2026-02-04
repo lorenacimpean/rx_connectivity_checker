@@ -26,7 +26,6 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.13.10' # Ensure Windows plugin support
           cache: true
 
       # 5️⃣ Flutter doctor for debugging
