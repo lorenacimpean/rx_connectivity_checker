@@ -3,30 +3,33 @@ name: Windows Build
 on:
   workflow_dispatch:
   push:
-  pull_request:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
+      # 1️⃣ Checkout code
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2️⃣ Enable long paths (needed for Windows)
       - name: Enable long paths
         run: git config --system core.longpaths true
 
-      # ✅ Setup MSVC / C++ toolchain
+      # 3️⃣ Setup MSVC / C++ toolchain
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      # ✅ Setup Flutter
+      # 4️⃣ Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.13.10' # Ensure Windows plugin support
           cache: true
 
+      # 5️⃣ Flutter doctor for debugging
       - name: Flutter Doctor
         run: flutter doctor -v
 
@@ -42,6 +45,14 @@ jobs:
         working-directory: example
         run: flutter pub get
 
+      - name: Clean Windows build
+        working-directory: example
+        run: flutter clean
+
+      - name: Pub Get (example, after clean)
+        working-directory: example
+        run: flutter pub get
+
       - name: Build Windows Example
         working-directory: example
-        run: flutter build windows --release --verbose
+        run: flutter build windows --release
