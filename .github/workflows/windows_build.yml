@@ -8,25 +8,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout code
       - uses: actions/checkout@v4
 
-      # 2️⃣ Setup Flutter (latest stable, no specific version)
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # 3️⃣ Precache Windows artifacts
       - run: flutter precache --windows
 
-      # 4️⃣ Get dependencies
-      - run: flutter pub get
+      # Go into example app
+      - working-directory: example
+        run: flutter pub get
 
-      # 5️⃣ Clean build
-      - run: flutter clean
+      - working-directory: example
+        run: flutter clean
 
-      # 6️⃣ Get dependencies again to regenerate ephemeral/plugin files
-      - run: flutter pub get
+      - working-directory: example
+        run: flutter pub get
 
-      # 7️⃣ Build Windows app (release)
-      - run: flutter build windows --release
+      - working-directory: example
+        run: flutter build windows --release
