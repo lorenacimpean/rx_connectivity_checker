@@ -4,7 +4,8 @@ version: 1.0.0
 repository: https://github.com/lorenacimpean/rx_connectivity_checker
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=2.18.0 <3.0.0"
+  flutter: ">=3.41.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -43,9 +44,11 @@ flutter:
       macos:
         pluginClass: SwiftRxConnectivityCheckerPlugin
       windows:
-        pluginClass: RxConnectivityCheckerPluginCApi
+        pluginClass: WindowsRxConnectivityChecker
+        fileName: rx_connectivity_checker_plugin.cpp
       linux:
-        dartPluginClass: src/LinuxRxConnectivityChecker
+        pluginClass: LinuxRxConnectivityChecker
+        fileName: src/linux_rx_connectivity_checker.dart
       web:
         fileName: src/web_rx_connectivity_checker.dart
         pluginClass: WebRxConnectivityChecker

@@ -4,7 +4,8 @@ description: "Example for rx_connectivity_checker package"
 publish_to: 'none'
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=2.18.0 <3.0.0"
+  flutter: ">=3.41.0 <4.0.0"
 
 dependencies:
   dev: ^1.0.0

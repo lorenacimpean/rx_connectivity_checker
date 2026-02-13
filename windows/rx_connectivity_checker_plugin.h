@@ -2,29 +2,77 @@
 #define FLUTTER_PLUGIN_RX_CONNECTIVITY_CHECKER_PLUGIN_H_
 
 #include <flutter/method_channel.h>
+#include <flutter/event_channel.h>
 #include <flutter/plugin_registrar_windows.h>
+#include <flutter/standard_method_codec.h>
 
+#include <windows.h>
+#include <netlistmgr.h>
+#include <wrl/client.h> // CRITICAL: This allows Microsoft::WRL::ComPtr
 #include <memory>
+#include <atomic>
+#include <string>
+#include <functional>
 
 namespace rx_connectivity_checker {
 
-class RxConnectivityCheckerPlugin : public flutter::Plugin {
- public:
-  static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
+// Listener for Windows Network List Manager events.
+    class NetworkManagerEvents : public INetworkListManagerEvents {
+    public:
+        NetworkManagerEvents(std::function<void(NLM_CONNECTIVITY)> callback)
+                : callback_(callback), ref_count_(1) {}
 
-  RxConnectivityCheckerPlugin();
+        // IUnknown boilerplate
+        IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv) override;
+        IFACEMETHODIMP_(ULONG) AddRef() override;
+        IFACEMETHODIMP_(ULONG) Release() override;
 
-  virtual ~RxConnectivityCheckerPlugin();
+        // INetworkListManagerEvents implementation
+        IFACEMETHODIMP ConnectivityChanged(NLM_CONNECTIVITY newConnectivity) override;
 
-  // Disallow copy and assign.
-  RxConnectivityCheckerPlugin(const RxConnectivityCheckerPlugin&) = delete;
-  RxConnectivityCheckerPlugin& operator=(const RxConnectivityCheckerPlugin&) = delete;
+    private:
+        std::atomic<ULONG> ref_count_;
+        std::function<void(NLM_CONNECTIVITY)> callback_;
+    };
 
-  // Called when a method is called on this plugin's channel from Dart.
-  void HandleMethodCall(
-      const flutter::MethodCall<flutter::EncodableValue> &method_call,
-      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
-};
+    class RxConnectivityCheckerPlugin
+            : public flutter::Plugin,
+              public flutter::StreamHandler<flutter::EncodableValue> {
+    public:
+        static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
+
+        RxConnectivityCheckerPlugin();
+        virtual ~RxConnectivityCheckerPlugin();
+
+        RxConnectivityCheckerPlugin(const RxConnectivityCheckerPlugin&) = delete;
+        RxConnectivityCheckerPlugin& operator=(const RxConnectivityCheckerPlugin&) = delete;
+
+    private:
+        // StreamHandler methods
+        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
+                const flutter::EncodableValue* arguments,
+                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override;
+
+        std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
+                const flutter::EncodableValue* arguments) override;
+
+        // MethodChannel handler
+        void HandleMethodCall(
+                const flutter::MethodCall<flutter::EncodableValue> &method_call,
+                std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+
+        // Internal helpers
+        void StartListening();
+        void StopListening();
+        void BroadcastStatus(NLM_CONNECTIVITY connectivity);
+
+        // WRL Smart Pointers
+        Microsoft::WRL::ComPtr<INetworkListManager> network_list_manager_;
+        Microsoft::WRL::ComPtr<IConnectionPoint> connection_point_;
+        DWORD cookie_ = 0;
+
+        std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> event_sink_;
+    };
 
 }  // namespace rx_connectivity_checker
 

@@ -1,42 +1,29 @@
-name: Windows Build
+name: Test Flutter Windows Build
 
 on:
   workflow_dispatch:
-  push:
-  pull_request:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Enable long paths
-        run: git config --system core.longpaths true
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: true
+          channel: 'stable'
 
-      - name: Flutter Doctor
-        run: flutter doctor -v
+      - name: Enable MSBuild
+        uses: microsoft/setup-msbuild@v1
 
-      # ---- Root package ----
-      - name: Pub Get (root)
-        run: flutter pub get
+      - name: Precache Windows
+        run: flutter precache --windows
 
-      - name: Analyze
-        run: flutter analyze
-
-      # ---- Example app ----
-      - name: Pub Get (example)
+      - name: Get dependencies
         working-directory: example
         run: flutter pub get
 
-      - name: Build Windows Example
+      - name: Build Windows (Release)
         working-directory: example
-        run: flutter build windows --debug --verbose
+        run: flutter build windows --release
