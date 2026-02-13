@@ -1,4 +1,4 @@
-#include "rx_connectivity_checker/rx_connectivity_checker_plugin_c_api.h"
+#include "rx_connectivity_checker/windows_rx_connectivity_checker.h"
 
 #include <flutter/plugin_registrar_windows.h>
 

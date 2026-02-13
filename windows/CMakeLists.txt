@@ -8,7 +8,7 @@ add_library(${PLUGIN_NAME} SHARED
         "rx_connectivity_checker_plugin.cpp"
         "rx_connectivity_checker_plugin.h"
         "rx_connectivity_checker_plugin_c_api.cpp"
-        "include/rx_connectivity_checker/rx_connectivity_checker_plugin_c_api.h"
+        "include/rx_connectivity_checker/windows_rx_connectivity_checker.h"
 )
 
 apply_standard_settings(${PLUGIN_NAME})
