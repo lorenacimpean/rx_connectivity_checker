@@ -44,7 +44,7 @@ flutter:
       macos:
         pluginClass: SwiftRxConnectivityCheckerPlugin
       windows:
-        pluginClass: RxConnectivityCheckerPlugin
+        pluginClass: WindowsRxConnectivityChecker
         fileName: rx_connectivity_checker_plugin.cpp
       linux:
         pluginClass: LinuxRxConnectivityChecker
