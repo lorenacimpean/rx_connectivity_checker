@@ -1,4 +1,4 @@
-#include "rx_connectivity_checker_plugin.h"
+#include "rx_connectivity_checker/rx_connectivity_checker_plugin_c_api.h"
 
 #include <windows.h>
 #include <netlistmgr.h>
