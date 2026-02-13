@@ -1,37 +1,39 @@
-name: Test Flutter Windows Build
+  yml
+  name: Test Flutter Windows Build
 
-on:
-  workflow_dispatch:
+  on:
+    workflow_dispatch:
 
-jobs:
-  build:
-    runs-on: windows-latest
+  jobs:
+    build:
+      runs-on: windows-latest
 
-    steps:
-      - uses: actions/checkout@v4
+      steps:
+        - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+        - uses: subosito/flutter-action@v2
+          with:
+            channel: 'stable'
 
-      - name: Enable MSBuild
-        uses: microsoft/setup-msbuild@v1
+        - name: Enable MSBuild
+          uses: microsoft/setup-msbuild@v1
 
-      - name: Precache Windows
-        run: flutter precache --windows
+        - name: Precache Windows
+          run: flutter precache --windows
 
-      - name: Get dependencies (example app)
-        working-directory: example
-        run: flutter pub get
+        - name: Get dependencies (example app)
+          working-directory: example
+          run: flutter pub get
 
-      - name: Install CppWinRT
-        shell: pwsh
-        run: |
-          nuget install Microsoft.Windows.CppWinRT -Version 2.0.230706.1 -OutputDirectory $env:GITHUB_WORKSPACE
+        - name: Install CppWinRT
+          shell: pwsh
+          run: |
+            nuget install Microsoft.Windows.CppWinRT -Version 2.0.230706.1 -OutputDirectory $env:GITHUB_WORKSPACE
 
-      - name: Build Windows (Release)
-        working-directory: example
-        shell: pwsh
-        env:
-          CMAKE_PREFIX_PATH: ${{ github.workspace }}\Microsoft.Windows.CppWinRT.2.0.230706.1\build\native
-        run: flutter build windows --release
+        - name: Build Windows (Release)
+          working-directory: example
+          shell: pwsh
+          env:
+            # Use FLUTTER_CMAKE_ARGS to pass the path to CMake
+            FLUTTER_CMAKE_ARGS: "-DCMAKE_PREFIX_PATH=${{ github.workspace }}\\Microsoft.Windows.CppWinRT.2.0.230706.1\\build\\native"
+          run: flutter build windows --release
