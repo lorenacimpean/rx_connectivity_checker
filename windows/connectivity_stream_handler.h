@@ -1,5 +1,3 @@
-#include "connectivity_stream_handler.h"
-
 using namespace winrt;
 using namespace Windows::Networking::Connectivity;
 using namespace Windows::System::Power;
