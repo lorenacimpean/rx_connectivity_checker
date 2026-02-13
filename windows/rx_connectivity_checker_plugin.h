@@ -6,11 +6,13 @@
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
+#include <windows.h>
 #include <netlistmgr.h>
-#include <wrl/client.h> // Standard Windows Smart Pointers (No ATL required)
+#include <wrl/client.h> // CRITICAL: This allows Microsoft::WRL::ComPtr
 #include <memory>
 #include <atomic>
 #include <string>
+#include <functional>
 
 namespace rx_connectivity_checker {
 
@@ -54,15 +56,17 @@ namespace rx_connectivity_checker {
         std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
                 const flutter::EncodableValue* arguments) override;
 
+        // MethodChannel handler
         void HandleMethodCall(
                 const flutter::MethodCall<flutter::EncodableValue> &method_call,
                 std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
+        // Internal helpers
         void StartListening();
         void StopListening();
         void BroadcastStatus(NLM_CONNECTIVITY connectivity);
 
-        // Use WRL ComPtr instead of ATL CComPtr
+        // WRL Smart Pointers
         Microsoft::WRL::ComPtr<INetworkListManager> network_list_manager_;
         Microsoft::WRL::ComPtr<IConnectionPoint> connection_point_;
         DWORD cookie_ = 0;

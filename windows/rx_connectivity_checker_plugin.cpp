@@ -1,4 +1,4 @@
-#include "rx_connectivity_checker/rx_connectivity_checker_plugin_c_api.h"
+#include "rx_connectivity_checker_plugin.h"
 
 #include <windows.h>
 #include <netlistmgr.h>
@@ -73,8 +73,9 @@ namespace rx_connectivity_checker {
             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
 
         if (method_call.method_name().compare("getPlatformVersion") == 0) {
-            // ... (version check logic same as before) ...
-            result->Success(flutter::EncodableValue("Windows"));
+            std::ostringstream version_stream;
+            version_stream << "Windows";
+            result->Success(flutter::EncodableValue(version_stream.str()));
         } else {
             result->NotImplemented();
         }
@@ -117,7 +118,6 @@ namespace rx_connectivity_checker {
             connection_point_->Unadvise(cookie_);
             cookie_ = 0;
         }
-        // WRL smart pointers release automatically, but explicit release is fine too
         connection_point_.Reset();
         network_list_manager_.Reset();
     }
@@ -135,8 +135,6 @@ namespace rx_connectivity_checker {
             status = "capabilities_changed";
         }
 
-        // Dispatch to main thread not strictly required for EventSink in recent Flutter Windows,
-        // but if you encounter threading issues, wrap this in registrar->messenger()->PostTask
         event_sink_->Success(flutter::EncodableValue(status));
     }
 
