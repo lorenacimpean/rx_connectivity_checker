@@ -8,23 +8,39 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - run: flutter precache --windows
+      - name: Enable MSBuild
+        uses: microsoft/setup-msbuild@v1
 
-      # Go into example app
-      - working-directory: example
+      - name: Flutter Doctor
+        run: flutter doctor -v
+
+      - name: Precache Windows
+        run: flutter precache --windows
+
+      - name: Get dependencies (example app)
+        working-directory: example
         run: flutter pub get
 
-      - working-directory: example
-        run: flutter clean
+      # Install CppWinRT (required by plugin)
+      - name: Install CppWinRT
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Windows.CppWinRT -Version 2.0.230706.1 -OutputDirectory $env:GITHUB_WORKSPACE
 
-      - working-directory: example
-        run: flutter pub get
+      - name: Set CppWinRT_DIR
+        shell: pwsh
+        run: |
+          $path = "$env:GITHUB_WORKSPACE\Microsoft.Windows.CppWinRT.2.0.230706.1\build\native"
+          echo "CppWinRT_DIR=$path" >> $env:GITHUB_ENV
 
-      - working-directory: example
+      - name: Build Windows (Release)
+        working-directory: example
         run: flutter build windows --release
