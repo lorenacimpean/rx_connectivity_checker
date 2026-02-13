@@ -1,4 +1,3 @@
-  yml
   name: Test Flutter Windows Build
 
   on:
