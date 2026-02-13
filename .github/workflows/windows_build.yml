@@ -31,4 +31,7 @@ jobs:
 
       - name: Build Windows (Release)
         working-directory: example
-        run: flutter build windows --release -- -DCppWinRT_DIR="${{ github.workspace }}\Microsoft.Windows.CppWinRT.2.0.230706.1\build\native"
+        shell: pwsh
+        env:
+          CMAKE_PREFIX_PATH: ${{ github.workspace }}\Microsoft.Windows.CppWinRT.2.0.230706.1\build\native
+        run: flutter build windows --release
