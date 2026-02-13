@@ -4,7 +4,7 @@
 
 #include "rx_connectivity_checker_plugin.h"
 
-void RxConnectivityCheckerPluginCApiRegisterWithRegistrar(
+void WindowsRxConnectivityCheckerRegisterWithRegistrar(
         FlutterDesktopPluginRegistrarRef registrar) {
     rx_connectivity_checker::RxConnectivityCheckerPlugin::RegisterWithRegistrar(
             flutter::PluginRegistrarManager::GetInstance()
