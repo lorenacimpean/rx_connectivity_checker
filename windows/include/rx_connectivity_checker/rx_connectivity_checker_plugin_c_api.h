@@ -2,7 +2,6 @@
 #define FLUTTER_PLUGIN_RX_CONNECTIVITY_CHECKER_PLUGIN_C_API_H_
 
 #include <flutter/plugin_registrar_windows.h>
-#include <flutter/flutter_plugin_registrar.h>
 
 #ifdef FLUTTER_PLUGIN_IMPL
 #define FLUTTER_PLUGIN_EXPORT __declspec(dllexport)
