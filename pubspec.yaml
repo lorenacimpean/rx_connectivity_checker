@@ -47,7 +47,8 @@ flutter:
         pluginClass: RxConnectivityCheckerPlugin
         fileName: rx_connectivity_checker_plugin.cpp
       linux:
-        dartPluginClass: src/LinuxRxConnectivityChecker
+        pluginClass: LinuxRxConnectivityChecker
+        fileName: src/linux_rx_connectivity_checker.dart
       web:
         fileName: src/web_rx_connectivity_checker.dart
         pluginClass: WebRxConnectivityChecker
