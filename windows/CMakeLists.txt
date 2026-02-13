@@ -4,7 +4,6 @@ project(rx_connectivity_checker)
 
 set(PLUGIN_NAME rx_connectivity_checker_plugin)
 
-# 1. Add ALL source files (including the new C-API files)
 add_library(${PLUGIN_NAME} SHARED
         "rx_connectivity_checker_plugin.cpp"
         "rx_connectivity_checker_plugin.h"
@@ -20,12 +19,14 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
         CXX_EXTENSIONS NO
 )
 
-# 2. CRITICAL FIX: Add the include directory to the search path
 target_include_directories(${PLUGIN_NAME} PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-# 3. Link libraries (ole32, uuid, etc.)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE
+        FLUTTER_PLUGIN_IMPL
+)
+
 target_link_libraries(${PLUGIN_NAME} PRIVATE
         flutter
         flutter_wrapper_plugin
