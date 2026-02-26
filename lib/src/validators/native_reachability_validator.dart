@@ -17,8 +17,12 @@ class NativeReachabilityValidator implements ReachabilityValidator {
     Map<String, String>? headers,
     IHttpClient? client,
   }) async {
+    // Fall back to the default HTTP client when none is injected so that
+    // callers constructing NativeReachabilityValidator directly (e.g. in
+    // tests) do not hit a null-dereference crash.
+    final effectiveClient = client ?? DefaultHttpClient();
     try {
-      final response = await client!
+      final response = await effectiveClient
           .get(Uri.parse(url), headers: headers)
           .timeout(timeout);
 

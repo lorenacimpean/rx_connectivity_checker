@@ -95,3 +95,8 @@ gitignore
 
 # Obfuscation artifacts
 *.map
+
+# FVM Version Cache
+.fvm/.fvmrc
+.fvm/
+.fvmrc

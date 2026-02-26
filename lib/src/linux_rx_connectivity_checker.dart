@@ -61,27 +61,28 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
 
           // 2. Continuous Monitoring
           // Listen for 'StateChanged' signals emitted by NetworkManager
-          signalSubscription =
-              DBusSignalStream(
-                _client,
-                sender: 'org.freedesktop.NetworkManager',
-                interface: 'org.freedesktop.NetworkManager',
-                name: 'StateChanged',
-              ).listen((signal) {
-                if (signal.values.isNotEmpty) {
-                  final state = signal.values[0].asUint32();
-                  _emitStatus(controller, state);
-                }
-              });
+          signalSubscription = DBusSignalStream(
+            _client,
+            sender: 'org.freedesktop.NetworkManager',
+            interface: 'org.freedesktop.NetworkManager',
+            name: 'StateChanged',
+          ).listen((signal) {
+            if (signal.values.isNotEmpty) {
+              final state = signal.values[0].asUint32();
+              _emitStatus(controller, state);
+            }
+          });
         } catch (e) {
           debugPrint('LinuxConnectivity Error: $e');
           controller.add('unknown');
         }
       },
-      onCancel: () {
-        // OOP Principle: Clean up the subscription to prevent memory leaks
-        // and stop receiving unnecessary system signals.
-        signalSubscription?.cancel();
+      onCancel: () async {
+        // Cancel the signal subscription first, then close the D-Bus client
+        // to release the underlying system socket and prevent FD leaks on
+        // hot-restart or widget disposal.
+        await signalSubscription?.cancel();
+        await _client.close();
       },
     );
 

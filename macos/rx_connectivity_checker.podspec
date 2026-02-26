@@ -1,30 +1,16 @@
-#
-# To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
-# Run `pod lib lint rx_connectivity_checker.podspec` to validate before publishing.
-#
 Pod::Spec.new do |s|
   s.name             = 'rx_connectivity_checker'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
-  s.description      = <<-DESC
-A new Flutter plugin project.
-                       DESC
-  s.homepage         = 'http://example.com'
-  s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
-
+  s.version          = '1.0.1'
+  s.summary          = 'macOS implementation of rx_connectivity_checker'
+  s.description      = 'Robust reactive connectivity monitoring for macOS.'
+  s.homepage         = 'https://github.com/lorenacimpean/rx_connectivity_checker'
+  s.license          = { :type => 'MIT', :file => '../LICENSE' }
+  s.author           = { 'Lorena Cimpean' => 'lorenacimpean@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
-
-  # If your plugin requires a privacy manifest, for example if it collects user
-  # data, update the PrivacyInfo.xcprivacy file to describe your plugin's
-  # privacy impact, and then uncomment this line. For more information,
-  # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'rx_connectivity_checker_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
-
+  s.source_files     = 'Classes/**/*'
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
+  s.platform = :osx, '10.14'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 end

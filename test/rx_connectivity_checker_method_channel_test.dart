@@ -16,27 +16,27 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(methodChannel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getPlatformVersion') {
-            return '42';
-          }
-          return null;
-        });
+      if (methodCall.method == 'getPlatformVersion') {
+        return '42';
+      }
+      return null;
+    });
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(eventChannelMethods, (
-          MethodCall methodCall,
-        ) async {
-          switch (methodCall.method) {
-            case 'listen':
-              // The native side "accepted" the listener.
-              return null;
-            case 'cancel':
-              // The native side "accepted" the cancellation.
-              return null;
-            default:
-              return null;
-          }
-        });
+      MethodCall methodCall,
+    ) async {
+      switch (methodCall.method) {
+        case 'listen':
+          // The native side "accepted" the listener.
+          return null;
+        case 'cancel':
+          // The native side "accepted" the cancellation.
+          return null;
+        default:
+          return null;
+      }
+    });
   });
 
   tearDown(() {

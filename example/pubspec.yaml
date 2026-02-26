@@ -1,21 +1,23 @@
 name: rx_connectivity_checker_example
-description: "Example for rx_connectivity_checker package"
-
+description: Example app for rx_connectivity_checker.
 publish_to: 'none'
 
 environment:
-  sdk: ">=2.18.0 <3.0.0"
+  sdk: ">=3.0.0 <4.0.0"
   flutter: ">=3.41.0 <4.0.0"
 
 dependencies:
-  dev: ^1.0.0
   flutter:
     sdk: flutter
   rx_connectivity_checker:
     path: ../
-  rxdart: ^0.28.0
+  universal_platform: ^1.1.0
 
+  flutter_animate: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

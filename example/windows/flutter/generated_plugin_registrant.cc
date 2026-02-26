@@ -6,9 +6,9 @@
 
 #include "generated_plugin_registrant.h"
 
-#include <rx_connectivity_checker/rx_connectivity_checker_plugin_c_api.h>
+#include <rx_connectivity_checker/windows_rx_connectivity_checker.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
-  RxConnectivityCheckerPluginCApiRegisterWithRegistrar(
-      registry->GetRegistrarForPlugin("RxConnectivityCheckerPluginCApi"));
+  WindowsRxConnectivityCheckerRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("WindowsRxConnectivityChecker"));
 }

@@ -1,113 +1,194 @@
-``` dart
-// --------------------------------------------------------------------------
-// 1. Initialization and Singleton/DI Setup
-// --------------------------------------------------------------------------
+# rx_connectivity_checker
 
-// The ConnectivityChecker should be a singleton, managed by your DI layer (service/repository + provider).
-// It must be initialized once at app startup to avoid duplicated streams and redundant network calls.
+A reactive, production-ready Flutter connectivity checker that supports **Windows (COM / NLM)**, **Android**, and **iOS** with a unified `ConnectivityStatus` stream.
+
+---
+
+## Installation
+
+```yaml
+dependencies:
+  rx_connectivity_checker: ^<latest>
+```
+
+---
+
+## Quick Start
+
+```dart
+import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
+
+// Instantiate once — treat as a singleton owned by your DI layer.
+// Never recreate on hot-reload or widget rebuild.
 final connectivityChecker = ConnectivityChecker(
-  // The URL should be a robust, high-availability endpoint that returns a 204 or 200.
+  // High-availability endpoint: returns HTTP 204, no body, minimal overhead.
   url: 'https://www.google.com/generate_204',
-  // Check frequency set lower for demonstration, but typically 30 in production
+
+  // How often the background timer fires a proactive check.
+  // 10 s here for demo; prefer 30 s in production to conserve battery.
   checkFrequency: const Duration(seconds: 10),
-  // Enable the 'slow' state detection
+
+  // Emit ConnectivityStatus.slow when a response arrives but exceeds [timeout].
   checkSlowConnection: true,
-  // Max time to wait before classifying as 'slow' or 'offline'
+
+  // No response within 3 s → ConnectivityStatus.offline.
+  // On Windows, route-unreachable errors are also mapped here.
   timeout: const Duration(seconds: 3),
 );
+```
 
+---
+
+## Usage with `StreamBuilder`
+
+```dart
 class ConnectivityStatusWidget extends StatelessWidget {
   const ConnectivityStatusWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Subscribe to the connectivityStream
     return StreamBuilder<ConnectivityStatus>(
       stream: connectivityChecker.connectivityStream,
       initialData: ConnectivityStatus.unknown,
       builder: (context, snapshot) {
         final status = snapshot.data ?? ConnectivityStatus.unknown;
-
-        // 2. Map the status to UI feedback
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Current Status:',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 10),
-              _buildStatusIndicator(status),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  // 3. Manual check, which also updates the stream
-                  connectivityChecker.checkConnectivity();
-                },
-                child: const Text('Check Now'),
-              ),
-            ],
-          ),
-        );
+        return _buildStatusIndicator(status);
       },
     );
   }
-  
-  // --- Utility Method for UI Logic ---
 
   Widget _buildStatusIndicator(ConnectivityStatus status) {
-    String text;
-    Color color;
-
-    switch (status) {
-      case ConnectivityStatus.online:
-        text = 'Online';
-        color = Colors.green;
-        break;
-      case ConnectivityStatus.slow:
-        text = 'Slow Connection';
-        color = Colors.orange;
-        break;
-      case ConnectivityStatus.offline:
-        text = 'Offline';
-        color = Colors.red;
-        break;
-      case ConnectivityStatus.unknown:
-        text = 'Checking...';
-        color = Colors.grey;
-        break;
-    }
+    final (text, color) = switch (status) {
+      ConnectivityStatus.online  => ('Online',          Colors.green),
+      ConnectivityStatus.slow    => ('Slow Connection', Colors.orange),
+      ConnectivityStatus.offline => ('Offline',         Colors.red),
+      ConnectivityStatus.unknown => ('Checking…',       Colors.grey),
+    };
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withAlpha(50),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color),
       ),
       child: Text(
         text,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 20),
       ),
     );
   }
 }
+```
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+---
+
+## Usage with `StatefulWidget` (recommended for most apps)
+
+Subscribe in `initState`, cancel in `dispose`:
+
+```dart
+class ConnectivityScreen extends StatefulWidget {
+  const ConnectivityScreen({super.key});
+
+  @override
+  State<ConnectivityScreen> createState() => _ConnectivityScreenState();
+}
+
+class _ConnectivityScreenState extends State<ConnectivityScreen> {
+  ConnectivityStatus _status = ConnectivityStatus.unknown;
+  StreamSubscription<ConnectivityStatus>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = connectivityChecker.connectivityStream.listen((status) {
+      setState(() => _status = status);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Connectivity Checker Example',
-      theme: ThemeData(primarySwatch: Colors.pink),
-      home: const ConnectivityScreen(),
-    );
+    return Text(_status.name);
   }
 }
+```
+
+---
+
+## Manual check
+
+```dart
+// Triggers an immediate check; result is emitted on connectivityStream.
+// Useful for a "retry" button or pull-to-refresh.
+await connectivityChecker.checkConnectivity();
+```
+
+---
+
+## `ConnectivityStatus` values
+
+| Value | Meaning |
+|-------|---------|
+| `online`  | HTTP 200/204 received within `timeout` |
+| `slow`    | Response arrived but exceeded `timeout` (requires `checkSlowConnection: true`) |
+| `offline` | Request timed out, DNS failed, or route unreachable |
+| `unknown` | Initial state; first check pending |
+
+---
+
+## Platform behaviour
+
+| Platform | Implementation | Notes |
+|----------|---------------|-------|
+| **Windows** | `INetworkListManagerEvents` (COM / NLM) | Fires on network topology changes. Route-unreachable scenarios (captive portals, VPN drops) are mapped to `offline` via the HTTP timeout. |
+| **Android** | `connectivity_plus` + HTTP validation | Handles metered / VPN networks correctly. |
+| **iOS**     | `connectivity_plus` + HTTP validation | Reachability validated against `url`. |
+| **macOS / Linux / Web** | `connectivity_plus` + HTTP validation | Same HTTP-based path. |
+
+### Windows: timeout-as-offline
+
+The COM channel reports network *topology* changes instantly, but a connected interface does not guarantee internet reachability (e.g. captive portals, corporate proxies). The HTTP validator catches this: if the request to `url` times out, the status is demoted to `offline`. Set `timeout` conservatively (2–4 s) in enterprise environments.
+
+---
+
+## Production checklist
+
+- [ ] Keep a single `ConnectivityChecker` instance (singleton / DI).
+- [ ] Set `checkFrequency` ≥ 30 s in production to avoid battery drain.
+- [ ] Choose a `url` that returns a minimal response (HTTP 204 is ideal).
+- [ ] Tune `timeout` for your target network environment (3–5 s is typical).
+- [ ] Cancel the `StreamSubscription` in `dispose()`.
+- [ ] Never call `checkConnectivity()` in a tight loop; the stream handles debouncing.
+
+---
+
+## Example app
+
+The `example/` directory contains a showcase app with no extra state-management dependencies — just plain `StatefulWidget`:
+
+```
+example/
+  lib/
+    main.dart                        ← single StatefulWidget owns all state
+    ui/
+      theme/app_theme.dart           ← colours, glass helpers
+      widgets/
+        connectivity_halo.dart       ← animated glow orb (CustomPainter + flutter_animate)
+        telemetry_card.dart          ← frosted-glass card, platform badge, live dot
+```
+
+Run with:
+
+```bash
+cd example
+flutter run -d windows   # Windows: COM / NLM path
+flutter run -d android   # Android: native path
+flutter run -d ios       # iOS: native path
 ```

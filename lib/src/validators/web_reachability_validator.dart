@@ -18,10 +18,22 @@ class WebReachabilityValidator implements ReachabilityValidator {
     Map<String, String>? headers,
     IHttpClient? client,
   }) async {
+    // The web implementation uses the browser's native fetch() API and cannot
+    // use a Dart [IHttpClient] or inject custom [headers]. Passing either will
+    // have no effect on web. Use the native platform implementations if you
+    // need header or client injection.
+    assert(
+      client == null,
+      'IHttpClient injection is not supported on the web platform.',
+    );
+    assert(
+      headers == null,
+      'Custom headers are not supported on the web platform.',
+    );
     try {
       final fetchOptions = web.RequestInit(
         method: 'HEAD',
-        mode: 'no-cors', // Essential for bypasssing browser CORS blocks
+        mode: 'no-cors', // Essential for bypassing browser CORS blocks
         cache: 'no-cache',
       );
 

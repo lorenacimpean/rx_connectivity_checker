@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
-import 'package:project_starter_kit/common_utils.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interface.dart';
 import 'package:rx_connectivity_checker/src/validators/reachability_validator.dart';
@@ -11,6 +11,21 @@ import 'package:rxdart/rxdart.dart';
 /// This service combines periodic polling, native platform updates, and manual triggers
 /// to provide a robust stream of [ConnectivityStatus] updates. It employs throttling
 /// and request concurrency control to minimize resource usage.
+///
+/// ## Platform-specific behaviour
+///
+/// | Platform        | Timeout maps to              | [checkSlowConnection] honoured | Native signal source          |
+/// |-----------------|------------------------------|-------------------------------|-------------------------------|
+/// | Android / iOS   | `slow` or `offline`          | Yes                           | ConnectivityManager           |
+/// | **Windows**     | **always `offline`**         | **No — silently ignored**     | NLM (EventChannel)            |
+/// | Linux           | `slow` or `offline`          | Yes                           | NetworkManager / D-Bus        |
+/// | Web             | `slow` or `offline`          | Yes                           | `window` online/offline events|
+///
+/// > **Windows note:** The Windows networking stack rarely exhibits the degraded
+/// > "slow" states typical of mobile connections. A request timeout on Windows
+/// > strongly indicates an offline state or a blocked route. As a result,
+/// > [ConnectivityStatus.slow] is never returned on Windows regardless of the
+/// > value of [checkSlowConnection].
 class ConnectivityChecker {
   /// The maximum duration to wait for a connectivity check response.
   final Duration timeout;
@@ -34,8 +49,8 @@ class ConnectivityChecker {
   late final PublishSubject<bool> _manualCheckTrigger = PublishSubject();
 
   // Internal multicasting stream.
-  late final Stream<ConnectivityStatus> _internalStream = _buildStream()
-      .shareReplay(maxSize: 1);
+  late final Stream<ConnectivityStatus> _internalStream =
+      _buildStream().shareReplay(maxSize: 1);
 
   Future<ConnectivityStatus>? _pendingCheckFuture;
 
@@ -46,6 +61,9 @@ class ConnectivityChecker {
   /// - [url]: The URL used for the connectivity check (defaults to a reliable external source).
   /// - [checkSlowConnection]: If true, a [TimeoutException] is mapped to
   ///   [ConnectivityStatus.slow]. Otherwise, it is mapped to [ConnectivityStatus.offline].
+  ///   **Note:** This flag has no effect on Windows — timeouts always map to
+  ///   [ConnectivityStatus.offline] on that platform. See the class-level docs
+  ///   for the full platform-behaviour table.
   /// - [client]: An optional HTTP client implementation for dependency injection.
   ConnectivityChecker({
     this.timeout = ConnectivityCheckerConstants.defaultTimeout,
@@ -55,10 +73,10 @@ class ConnectivityChecker {
     String? url,
     RxConnectivityCheckerPlatform? platform,
     IHttpClient? client,
-  }) : _url = url ?? ConnectivityCheckerConstants.defaultCheckUrl,
-       _platform = platform ?? RxConnectivityCheckerPlatform.instance,
-       _client = client ?? DefaultHttpClient(),
-       _validator = ReachabilityValidator();
+  })  : _url = url ?? ConnectivityCheckerConstants.defaultCheckUrl,
+        _platform = platform ?? RxConnectivityCheckerPlatform.instance,
+        _client = client ?? DefaultHttpClient(),
+        _validator = ReachabilityValidator();
 
   /// A shared stream of [ConnectivityStatus] updates.
   ///
@@ -86,17 +104,18 @@ class ConnectivityChecker {
   /// a single stream that performs actual network validation.
   Stream<ConnectivityStatus> _buildStream() {
     final periodicStream = Stream.periodic(checkFrequency, (_) {
-      DebugLogger.log('Periodic check triggered');
+      dev.log('Periodic check triggered', name: 'RxConnectivityChecker');
       return true;
     });
 
     final nativeStream = _platform.platformStatusStream.map((status) {
-      DebugLogger.log('Native platform status changed: $status');
+      dev.log('Native platform status changed: $status',
+          name: 'RxConnectivityChecker');
       return true;
     });
 
     final manualStream = _manualCheckTrigger.stream.map((_) {
-      DebugLogger.log('Manual check triggered');
+      dev.log('Manual check triggered', name: 'RxConnectivityChecker');
       return true;
     });
 

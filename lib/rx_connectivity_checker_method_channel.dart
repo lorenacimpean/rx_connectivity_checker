@@ -29,11 +29,11 @@ class MethodChannelRxConnectivityChecker extends RxConnectivityCheckerPlatform {
         .receiveBroadcastStream()
         .map((dynamic event) => event.toString())
         .handleError((error) {
-          // Log error or handle specific platform exceptions here
-          debugPrint('RxConnectivityChecker: Error in stream: $error');
-          // Return a fallback state or rethrow depending on requirements
-          return 'unknown';
-        });
+      // Log error or handle specific platform exceptions here
+      debugPrint('RxConnectivityChecker: Error in stream: $error');
+      // Return a fallback state or rethrow depending on requirements
+      return 'unknown';
+    });
 
     return _onConnectivityChanged!;
   }
