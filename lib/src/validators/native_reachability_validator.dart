@@ -26,6 +26,13 @@ class NativeReachabilityValidator implements ReachabilityValidator {
           ? ConnectivityStatus.online
           : ConnectivityStatus.offline;
     } on TimeoutException {
+      if (Platform.isWindows) {
+        // The Windows networking stack rarely exhibits the degraded "slow" states
+        // typical of mobile connections. A TimeoutException on this platform
+        // strongly indicates an offline state or blocked route, regardless
+        // of the configured timeout duration.
+        return ConnectivityStatus.offline;
+      }
       return checkSlowConnection
           ? ConnectivityStatus.slow
           : ConnectivityStatus.offline;
