@@ -19,19 +19,6 @@ abstract final class AppTheme {
 
   static const String fontMono = 'monospace';
 
-  static BoxDecoration glassCard({double borderRadius = 20}) => BoxDecoration(
-        color: glassWhite,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: glassBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.35),
-            blurRadius: 32,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      );
-
   static ThemeData get theme => ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: background,
@@ -40,5 +27,18 @@ abstract final class AppTheme {
           primary: online,
         ),
         useMaterial3: true,
+      );
+
+  static BoxDecoration glassCard({double borderRadius = 20}) => BoxDecoration(
+        color: glassWhite,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: glassBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: (0.35)),
+            blurRadius: 32,
+            offset: const Offset(0, 8),
+          ),
+        ],
       );
 }

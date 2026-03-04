@@ -122,8 +122,7 @@ class ConnectivityChecker {
 
     return Rx.merge([periodicStream, manualStream, nativeStream])
         .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
-        .exhaustMap((_) => Stream.fromFuture(_performCheck())
-            .onErrorReturn(ConnectivityStatus.unknown))
+        .exhaustMap((_) => Stream.fromFuture(_performCheck()))
         .startWith(ConnectivityStatus.unknown);
   }
 

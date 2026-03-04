@@ -180,9 +180,9 @@ class _PlatformBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: (0.08)),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.30)),
+        border: Border.all(color: color.withValues(alpha: (0.30))),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 13, color: color),

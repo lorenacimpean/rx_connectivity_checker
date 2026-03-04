@@ -54,7 +54,7 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(colors: [
-                  _blobColor.withOpacity(0.18),
+                  _blobColor.withValues(alpha: (0.18)),
                   Colors.transparent,
                 ]),
               ),
@@ -71,7 +71,7 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(colors: [
-                  _blobColor.withOpacity(0.10),
+                  _blobColor.withValues(alpha: (0.10)),
                   Colors.transparent,
                 ]),
               ),
@@ -177,8 +177,7 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
   void initState() {
     super.initState();
     _checker = ConnectivityChecker(
-      url: 'https://www.google.com/generate_204',
-      checkFrequency: const Duration(seconds: 10),
+      checkFrequency: const Duration(seconds: 60),
       checkSlowConnection: true,
       timeout: const Duration(seconds: 3),
     );
@@ -257,7 +256,8 @@ class _EventLog extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: color,
                 boxShadow: [
-                  BoxShadow(color: color.withOpacity(0.5), blurRadius: 4)
+                  BoxShadow(
+                      color: color.withValues(alpha: (0.5)), blurRadius: 4)
                 ],
               ),
             ),
@@ -296,10 +296,11 @@ class _LatencyButton extends StatelessWidget {
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: AppTheme.online.withOpacity(loading ? 0.04 : 0.08),
+            color: AppTheme.online.withValues(alpha: (loading ? 0.04 : 0.08)),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: AppTheme.online.withOpacity(loading ? 0.15 : 0.35)),
+                color:
+                    AppTheme.online.withValues(alpha: (loading ? 0.15 : 0.35))),
           ),
           child: Row(children: [
             SizedBox(
@@ -319,7 +320,7 @@ class _LatencyButton extends StatelessWidget {
                     fontSize: 11,
                     letterSpacing: 2,
                     color: loading
-                        ? AppTheme.online.withOpacity(0.4)
+                        ? AppTheme.online.withValues(alpha: (0.4))
                         : AppTheme.online,
                     fontWeight: FontWeight.w700,
                   )),
@@ -334,7 +335,7 @@ class _LatencyButton extends StatelessWidget {
             ]),
             const Spacer(),
             Icon(Icons.chevron_right,
-                color: AppTheme.online.withOpacity(0.4), size: 16),
+                color: AppTheme.online.withValues(alpha: (0.4)), size: 16),
           ]),
         ),
       );

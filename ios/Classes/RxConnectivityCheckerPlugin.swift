@@ -31,7 +31,10 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin {
     /// Sets up the MethodChannel and EventChannel.
     private func setupChannels(with registrar: FlutterPluginRegistrar) {
         // Setup MethodChannel for one-off requests
-        methodChannel = FlutterMethodChannel(name: SwiftRxConnectivityCheckerPlugin.channelName, binaryMessenger: registrar.messenger())
+        methodChannel = FlutterMethodChannel(
+            name: SwiftRxConnectivityCheckerPlugin.channelName,
+            binaryMessenger: registrar.messenger()
+        )
         registrar.addMethodCallDelegate(self, channel: methodChannel!)
 
         // Setup EventChannel for continuous network monitoring
@@ -55,7 +58,6 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin {
     }
 
     /// Cleanup logic if the plugin is detached.
-    /// Note: `detachFromEngine` is available in newer Flutter iOS embedders.
     public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
         eventChannel?.setStreamHandler(nil)
         streamHandler = nil
@@ -64,85 +66,129 @@ public class SwiftRxConnectivityCheckerPlugin: NSObject, FlutterPlugin {
 }
 
 /// A specialized handler that manages the iOS `NWPathMonitor` callbacks.
-/// This class adheres to the Single Responsibility Principle (SRP) by isolating
-/// the network monitoring logic from the plugin lifecycle.
+///
+/// Responsibilities:
+/// - Translates `NWPath.Status` to string tokens consumed by Dart.
+/// - Applies a **unified debounce** to every status transition so that rapid
+///   bursts (e.g. WiFi → unsatisfied → cellular handoff) collapse into a
+///   single emission of the final stable state.
+/// - Suppresses duplicate consecutive emissions via `lastEmittedStatus`.
 class ConnectivityStreamHandler: NSObject, FlutterStreamHandler {
 
+    // MARK: - Private state
+
     /// The monitor responsible for observing network path changes.
-    /// This is the iOS equivalent of Android's ConnectivityManager.
     private var monitor: NWPathMonitor?
 
-    /// The queue on which the monitor runs.
-    /// iOS Network monitoring requires a background queue to function correctly
-    /// without blocking the main UI thread.
-    private let monitorQueue = DispatchQueue(label: "io.github.lorenacimpean.rx_connectivity_checker.monitor")
+    /// Dedicated background queue for `NWPathMonitor`.
+    /// Must not be the main queue — the monitor blocks its queue while running.
+    private let monitorQueue = DispatchQueue(
+        label: "io.github.lorenacimpean.rx_connectivity_checker.monitor",
+        qos: .utility
+    )
 
-    /// The sink to send events to Flutter.
+    /// The sink used to forward events to Dart.
     private var eventSink: FlutterEventSink?
 
-    /**
-     * Called when the Flutter side subscribes to the stream.
-     * @param arguments Arguments passed from Dart.
-     * @param events The sink to send events to.
-     */
-    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    /// The last status successfully forwarded to Dart.
+    /// Used to suppress duplicate emissions after debounce settles.
+    private var lastEmittedStatus: String?
+
+    /// A single pending work item shared by ALL status transitions.
+    ///
+    /// **Why a unified work item?**
+    ///
+    /// `NWPathMonitor` can fire multiple rapid callbacks during any network
+    /// change — including handoffs between interfaces (WiFi → cellular) that
+    /// produce an intermediate `.unsatisfied` pulse before re-settling on
+    /// `.satisfied`. With separate paths for "available" vs "lost":
+    ///
+    ///   satisfied → unsatisfied → satisfied
+    ///        ↓             ↓            ↓
+    ///   (debounced)  (immediate ❌)  (debounced)
+    ///
+    /// The "lost" fires immediately, producing a false offline event.
+    ///
+    /// With a single shared work item every incoming status **replaces** the
+    /// previous pending one, so only the final stable state in a burst is
+    /// emitted — for both "available" and "lost" transitions.
+    private var pendingWork: DispatchWorkItem?
+
+    /// How long to wait after the last raw callback before forwarding the
+    /// resolved status to Dart. 300 ms comfortably covers WiFi→cellular
+    /// handoffs without being perceptible to the user.
+    private static let debounceInterval: TimeInterval = 0.3
+
+    // MARK: - FlutterStreamHandler
+
+    func onListen(
+        withArguments arguments: Any?,
+        eventSink events: @escaping FlutterEventSink
+    ) -> FlutterError? {
         self.eventSink = events
         self.monitor = NWPathMonitor()
 
-        // Define the callback for path updates
         self.monitor?.pathUpdateHandler = { [weak self] path in
-            guard let self = self else { return }
+            guard let self else { return }
 
-            // Map iOS specific path status to our generic event strings.
-            // These strings act as triggers for the Dart side to run its robust checks.
             let status: String
-
             switch path.status {
-            case .satisfied:
-                // The network is usable (Internet accessible, Wifi connected, etc).
-                // Equivalent to Android's `onAvailable` or `onCapabilitiesChanged`.
-                status = "available"
-            case .unsatisfied:
-                // No network route available (Airplane mode, no signal).
-                // Equivalent to Android's `onLost`.
-                status = "lost"
-            case .requiresConnection:
-                // Network is available but requires activation (e.g. VPN on demand).
-                status = "requires_connection"
-            @unknown default:
-                status = "lost"
+            case .satisfied:         status = "available"
+            case .unsatisfied:       status = "lost"
+            case .requiresConnection: status = "requires_connection"
+            @unknown default:        status = "lost"
             }
 
-            // Send the event safely to Flutter
-            self.sendEvent(status: status)
+            // Transition to main thread before touching shared state.
+            DispatchQueue.main.async { [weak self] in
+                self?.scheduleEmission(of: status)
+            }
         }
 
-        // Start monitoring on the dedicated background queue
         self.monitor?.start(queue: monitorQueue)
-
         return nil
     }
 
-    /**
-     * Called when the Flutter side cancels the subscription.
-     * We stop the monitor to save battery and resources.
-     */
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        self.monitor?.cancel()
-        self.monitor = nil
-        self.eventSink = nil
+        cancelPending()
+        monitor?.cancel()
+        monitor = nil
+        eventSink = nil
+        lastEmittedStatus = nil
         return nil
     }
 
-    /**
-     * Helper method to post events to the Main Thread safely.
-     * Flutter Platform Channels MUST be communicated with on the Main Thread,
-     * but NWPathMonitor runs on a background queue.
-     */
-    private func sendEvent(status: String) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self, let sink = self.eventSink else { return }
-            sink(status)
+    // MARK: - Debounce logic (main thread only)
+
+    /// Replaces any pending work item with a new one that will emit `status`
+    /// after `debounceInterval` seconds — unless superseded by a later call.
+    ///
+    /// Must be called on the main thread.
+    private func scheduleEmission(of status: String) {
+        cancelPending()
+
+        let work = DispatchWorkItem { [weak self] in
+            self?.emit(status: status)
         }
+        pendingWork = work
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + ConnectivityStreamHandler.debounceInterval,
+            execute: work
+        )
+    }
+
+    /// Cancels and discards the current pending work item.
+    private func cancelPending() {
+        pendingWork?.cancel()
+        pendingWork = nil
+    }
+
+    /// Forwards `status` to Dart only when it differs from the last emission.
+    ///
+    /// Must be called on the main thread.
+    private func emit(status: String) {
+        guard status != lastEmittedStatus, let sink = eventSink else { return }
+        lastEmittedStatus = status
+        sink(status)
     }
 }

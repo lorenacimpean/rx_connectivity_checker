@@ -47,7 +47,7 @@ class _ConnectivityHaloState extends State<ConnectivityHalo>
                 height: widget.size * (0.85 + 0.15 * t),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: color.withOpacity(0.08 + 0.07 * t),
+                  color: color.withValues(alpha: (0.08 + 0.07 * t)),
                 ),
               ),
               // Mid ring
@@ -57,8 +57,9 @@ class _ConnectivityHaloState extends State<ConnectivityHalo>
                 height: widget.size * 0.6,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: color.withOpacity(0.12),
-                  border: Border.all(color: color.withOpacity(0.25), width: 1),
+                  color: color.withValues(alpha: (0.12)),
+                  border: Border.all(
+                      color: color.withValues(alpha: (0.25)), width: 1),
                 ),
               ),
               // Core orb
@@ -71,11 +72,11 @@ class _ConnectivityHaloState extends State<ConnectivityHalo>
                   color: color,
                   boxShadow: [
                     BoxShadow(
-                        color: color.withOpacity(0.7),
+                        color: color.withValues(alpha: (0.7)),
                         blurRadius: 24 + 12 * t,
                         spreadRadius: 2),
                     BoxShadow(
-                        color: color.withOpacity(0.3),
+                        color: color.withValues(alpha: (0.3)),
                         blurRadius: 48 + 16 * t,
                         spreadRadius: 8),
                   ],
