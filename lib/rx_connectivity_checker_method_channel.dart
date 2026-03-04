@@ -24,15 +24,14 @@ class MethodChannelRxConnectivityChecker extends RxConnectivityCheckerPlatform {
   /// 2. Handles generic PlatformExceptions gracefully.
   @override
   Stream<String> get platformStatusStream {
-    // Initialize the stream only once
     _onConnectivityChanged ??= eventChannel
         .receiveBroadcastStream()
         .map((dynamic event) => event.toString())
         .handleError((error) {
-      // Log error or handle specific platform exceptions here
-      debugPrint('RxConnectivityChecker: Error in stream: $error');
-      // Return a fallback state or rethrow depending on requirements
-      return 'unknown';
+      debugPrint(
+        'RxConnectivityChecker: Platform stream error, cache cleared for reconnect: $error',
+      );
+      _onConnectivityChanged = null;
     });
 
     return _onConnectivityChanged!;

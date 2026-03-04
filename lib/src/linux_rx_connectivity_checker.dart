@@ -40,7 +40,6 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
     controller = StreamController<String>.broadcast(
       onListen: () async {
         try {
-          // 1. Initial State Check
           // Fetch current Connectivity via the standard 'org.freedesktop.DBus.Properties'
           final result = await _client.callMethod(
             destination: 'org.freedesktop.NetworkManager',
