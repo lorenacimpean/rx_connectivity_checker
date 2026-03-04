@@ -143,9 +143,9 @@ await connectivityChecker.checkConnectivity();
 | Platform | Implementation | Notes |
 |----------|---------------|-------|
 | **Windows** | `INetworkListManagerEvents` (COM / NLM) | Fires on network topology changes. Route-unreachable scenarios (captive portals, VPN drops) are mapped to `offline` via the HTTP timeout. |
-| **Android** | `connectivity_plus` + HTTP validation | Handles metered / VPN networks correctly. |
-| **iOS** | `connectivity_plus` + HTTP validation | Reachability validated against `url`. |
-| **macOS / Linux / Web** | `connectivity_plus` + HTTP validation | Same HTTP-based path. |
+| **Android** | `Connectivity` + HTTP validation | Handles metered / VPN networks correctly. |
+| **iOS** | `Connectivity` + HTTP validation | Reachability validated against `url`. |
+| **macOS / Linux / Web** | `Connectivity` + HTTP validation | Same HTTP-based path. |
 
 ### Windows-specific: timeout-as-offline
 

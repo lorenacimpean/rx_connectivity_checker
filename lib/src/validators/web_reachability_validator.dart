@@ -30,10 +30,13 @@ class WebReachabilityValidator implements ReachabilityValidator {
     }
 
     try {
+      // no-cors avoids preflight and CORS header requirements. The fetch
+      // resolves with an opaque response on success (server reached = online)
+      // and rejects with a TypeError on a genuine network failure (offline).
       final fetchOptions = web.RequestInit(
         method: 'GET',
-        mode: 'cors',
-        cache: 'no-cache',
+        mode: 'no-cors',
+        cache: 'no-store',
       );
 
       await web.window.fetch(url.toJS, fetchOptions).toDart.timeout(timeout);
@@ -44,18 +47,11 @@ class WebReachabilityValidator implements ReachabilityValidator {
           ? ConnectivityStatus.slow
           : ConnectivityStatus.offline;
     } catch (_) {
-      // A CORS TypeError or NetworkError both mean the server was contacted
-      // (or definitively unreachable). We treat non-timeout errors as online
-      // because a CORS rejection proves the server responded.
-      // A true network failure (no route, DNS failure) throws before timeout
-      // and lands here as offline.
-      //
-      // Distinguish by checking if we're actually offline per the browser:
-      if (!web.window.navigator.onLine) {
-        return ConnectivityStatus.offline;
-      }
-      // Browser says online but fetch threw (CORS rejection = server reachable).
-      return ConnectivityStatus.online;
+      // TypeError / NetworkError: genuine network failure.
+      // Use navigator.onLine as a secondary signal.
+      return web.window.navigator.onLine
+          ? ConnectivityStatus.online
+          : ConnectivityStatus.offline;
     }
   }
 }

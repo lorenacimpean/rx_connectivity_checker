@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:flutter/foundation.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interface.dart';
 import 'package:rx_connectivity_checker/src/validators/reachability_validator.dart';
@@ -75,7 +76,7 @@ class ConnectivityChecker {
     IHttpClient? client,
   })  : _url = url ?? ConnectivityCheckerConstants.defaultCheckUrl,
         _platform = platform ?? RxConnectivityCheckerPlatform.instance,
-        _client = client ?? DefaultHttpClient(),
+        _client = client ?? (kIsWeb ? null : DefaultHttpClient()),
         _validator = ReachabilityValidator();
 
   /// A shared stream of [ConnectivityStatus] updates.
@@ -121,9 +122,9 @@ class ConnectivityChecker {
 
     return Rx.merge([periodicStream, manualStream, nativeStream])
         .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
-        .exhaustMap((_) => Stream.fromFuture(_performCheck()))
-        .startWith(ConnectivityStatus.unknown)
-        .onErrorReturn(ConnectivityStatus.unknown);
+        .exhaustMap((_) => Stream.fromFuture(_performCheck())
+            .onErrorReturn(ConnectivityStatus.unknown))
+        .startWith(ConnectivityStatus.unknown);
   }
 
   /// Executes the network validation logic, ensuring only one check runs at a time.

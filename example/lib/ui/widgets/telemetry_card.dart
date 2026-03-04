@@ -65,7 +65,7 @@ class TelemetryCard extends StatelessWidget {
               'CHANNEL',
               UniversalPlatform.isWindows
                   ? 'NLM  (INetworkListManagerEvents)'
-                  : 'connectivity_plus  (native)'),
+                  : 'connectivity (native)'),
         ],
       ),
     );
