@@ -6,6 +6,10 @@
 
 namespace rx_connectivity_checker {
 
+// Registered once per process; unique across all windows in the session.
+    UINT RxConnectivityCheckerPlugin::wm_connectivity_changed_ =
+            RegisterWindowMessageW(L"RxConnectivityCheckerPlugin_ConnectivityChanged");
+
 // --- COM Event Listener Implementation ---
 
     IFACEMETHODIMP NetworkManagerEvents::QueryInterface(REFIID riid, void** ppv) {
@@ -38,7 +42,7 @@ namespace rx_connectivity_checker {
 // StreamHandlerDelegate
 //
 // A thin StreamHandler that forwards OnListen/OnCancel to the plugin via a
-// shared_ptr. This lets SetStreamHandler take unique ownership of this object
+// weak_ptr. This lets SetStreamHandler take unique ownership of this object
 // while the plugin itself is kept alive independently via the registrar.
 // ---------------------------------------------------------------------------
     class StreamHandlerDelegate
@@ -77,9 +81,10 @@ namespace rx_connectivity_checker {
     void RxConnectivityCheckerPlugin::RegisterWithRegistrar(
             flutter::PluginRegistrarWindows *registrar) {
 
+        auto* view = registrar->GetView();
+        HWND hwnd = view ? view->GetNativeWindow() : nullptr;
 
-        auto plugin = std::make_shared<RxConnectivityCheckerPlugin>(
-                registrar->GetTaskRunner());
+        auto plugin = std::make_shared<RxConnectivityCheckerPlugin>(hwnd, registrar);
 
         // Method channel — lambda holds a weak_ptr to avoid a dangling raw ptr.
         auto method_channel =
@@ -112,17 +117,39 @@ namespace rx_connectivity_checker {
         registrar->AddPlugin(std::move(plugin));
     }
 
-    // Flutter's Windows runner already initialises the COM apartment on the
-    // platform thread before any plugin is registered. Calling it again here
-    // either has no effect or triggers RPC_E_CHANGED_MODE.
     RxConnectivityCheckerPlugin::RxConnectivityCheckerPlugin(
-            flutter::TaskRunner* task_runner)
-            : task_runner_(task_runner),
-              alive_(std::make_shared<bool>(true)) {}
+            HWND hwnd, flutter::PluginRegistrarWindows *registrar)
+            : hwnd_(hwnd),
+              registrar_(registrar),
+              alive_(std::make_shared<bool>(true)) {
+
+        // Register a top-level window proc delegate so we can receive the custom
+        // message posted from the COM background thread and dispatch it safely on
+        // the platform thread.
+        if (registrar_) {
+            window_proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(
+                    [this](HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+                        return HandleWindowMessage(hwnd, msg, wp, lp);
+                    });
+        }
+    }
 
     RxConnectivityCheckerPlugin::~RxConnectivityCheckerPlugin() {
         *alive_ = false;
         StopListening();
+        if (registrar_ && window_proc_id_ >= 0) {
+            registrar_->UnregisterTopLevelWindowProcDelegate(window_proc_id_);
+        }
+    }
+
+    std::optional<LRESULT> RxConnectivityCheckerPlugin::HandleWindowMessage(
+            HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+        if (message == wm_connectivity_changed_) {
+            BroadcastStatus(
+                    static_cast<NLM_CONNECTIVITY>(pending_connectivity_.load()));
+            return 0;
+        }
+        return std::nullopt;
     }
 
     void RxConnectivityCheckerPlugin::HandleMethodCall(
@@ -181,7 +208,6 @@ namespace rx_connectivity_checker {
                     IID_INetworkListManagerEvents, &connection_point_);
 
             if (FAILED(hr_cp)) {
-                // Propagate partial-init failures to the Dart side.
                 std::lock_guard<std::mutex> lock(sink_mutex_);
                 if (event_sink_) {
                     event_sink_->Error("COM_ERROR",
@@ -195,14 +221,13 @@ namespace rx_connectivity_checker {
                     [this, weak_alive](NLM_CONNECTIVITY c) {
                         // We are on a COM background thread here.
                         auto guard = weak_alive.lock();
-                        if (!guard) return;  // plugin already gone
+                        if (!guard || !*guard) return;
 
-                        task_runner_->PostTask([this, weak_alive, c]() {
-                            // Now on the Flutter platform thread.
-                            auto g2 = weak_alive.lock();
-                            if (!g2 || !*g2) return;
-                            BroadcastStatus(c);
-                        });
+                        // Stage the value, then signal the platform thread via PostMessage.
+                        pending_connectivity_.store(static_cast<DWORD>(c));
+                        if (hwnd_) {
+                            PostMessage(hwnd_, wm_connectivity_changed_, 0, 0);
+                        }
                     });
 
             HRESULT hr_adv = connection_point_->Advise(events, &cookie_);
@@ -247,9 +272,6 @@ namespace rx_connectivity_checker {
     }
 
     void RxConnectivityCheckerPlugin::BroadcastStatus(NLM_CONNECTIVITY connectivity) {
-        // Must be called on the platform thread (guaranteed by PostTask in the
-        // COM callback lambda). The mutex is still here as a belt-and-suspenders
-        // guard around event_sink_ access.
         std::lock_guard<std::mutex> lock(sink_mutex_);
         if (!event_sink_) return;
         event_sink_->Success(
