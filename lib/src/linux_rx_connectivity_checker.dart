@@ -10,38 +10,43 @@ import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interfa
 /// This implementation subscribes to system signals to provide a reactive
 /// stream of connectivity updates without constant polling.
 class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
-  /// The system-level D-Bus client used for communication.
-  ///
-  /// NetworkManager resides on the System Bus (not the Session Bus) because
-  /// network configuration is a global system state.
-  late final DBusClient _client;
-
-  /// Creates an instance of [LinuxRxConnectivityChecker] and initializes
-  /// the system D-Bus client.
-  LinuxRxConnectivityChecker() {
-    _client = DBusClient.system();
-  }
+  /// Cached broadcast stream so that multiple subscribers (e.g. multiple
+  /// [ConnectivityChecker] instances) share a single D-Bus connection rather
+  /// than each creating their own.
+  Stream<String>? _cachedStream;
 
   /// A broadcast [Stream] that emits changes in the Linux system's network status.
   ///
-  /// This stream performs two primary actions:
-  /// 1. On subscription, it fetches the current `Connectivity` property from
-  ///    `org.freedesktop.NetworkManager` to provide an immediate initial value.
-  /// 2. It subscribes to the `StateChanged` signal to react to real-time updates
-  ///    (e.g., unplugging an Ethernet cable or switching Wi-Fi networks).
+  /// On first subscription the stream:
+  /// 1. Opens a system D-Bus connection and fetches the current `Connectivity`
+  ///    property from `org.freedesktop.NetworkManager` for an immediate value.
+  /// 2. Subscribes to `StateChanged` signals for real-time updates.
   ///
-  /// Returns `'satisfied'` if the system reports full internet connectivity,
-  /// otherwise returns `'unsatisfied'`.
+  /// The D-Bus connection is closed when the last subscriber cancels, releasing
+  /// the underlying file descriptor and preventing leaks on hot-restart or
+  /// widget disposal. A subsequent subscription reopens the connection.
+  ///
+  /// Emits `'available'` for full internet connectivity, `'lost'` otherwise.
   @override
   Stream<String> get platformStatusStream {
+    _cachedStream ??= _buildStream();
+    return _cachedStream!;
+  }
+
+  Stream<String> _buildStream() {
     late StreamController<String> controller;
     StreamSubscription? signalSubscription;
+    DBusClient? client;
 
     controller = StreamController<String>.broadcast(
       onListen: () async {
+        // Create a fresh D-Bus client each time a new subscription begins so
+        // that re-subscribing after a cancel works correctly.
+        client = DBusClient.system();
         try {
+          // 1. Initial State Check
           // Fetch current Connectivity via the standard 'org.freedesktop.DBus.Properties'
-          final result = await _client.callMethod(
+          final result = await client!.callMethod(
             destination: 'org.freedesktop.NetworkManager',
             path: DBusObjectPath('/org/freedesktop/NetworkManager'),
             interface: 'org.freedesktop.DBus.Properties',
@@ -61,7 +66,7 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
           // 2. Continuous Monitoring
           // Listen for 'StateChanged' signals emitted by NetworkManager
           signalSubscription = DBusSignalStream(
-            _client,
+            client!,
             sender: 'org.freedesktop.NetworkManager',
             interface: 'org.freedesktop.NetworkManager',
             name: 'StateChanged',
@@ -73,7 +78,7 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
           });
         } catch (e) {
           debugPrint('LinuxConnectivity Error: $e');
-          controller.add('unknown');
+          controller.add('lost');
         }
       },
       onCancel: () async {
@@ -81,7 +86,12 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
         // to release the underlying system socket and prevent FD leaks on
         // hot-restart or widget disposal.
         await signalSubscription?.cancel();
-        await _client.close();
+        signalSubscription = null;
+        await client?.close();
+        client = null;
+        // Clear the cache so the next call to platformStatusStream creates a
+        // fresh stream with a new D-Bus connection.
+        _cachedStream = null;
       },
     );
 
@@ -98,9 +108,9 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
   /// * [state] of `70` represents `NM_STATE_CONNECTED_GLOBAL`.
   void _emitStatus(StreamController<String> controller, int state) {
     if (state == 4 || state == 70) {
-      controller.add('satisfied');
+      controller.add('available');
     } else {
-      controller.add('unsatisfied');
+      controller.add('lost');
     }
   }
 

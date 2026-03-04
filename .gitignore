@@ -100,3 +100,9 @@ gitignore
 .fvm/.fvmrc
 .fvm/
 .fvmrc
+
+# Claude Code
+CLAUDE.md
+
+# Build artefacts
+android.zip

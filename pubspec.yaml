@@ -1,6 +1,6 @@
 name: rx_connectivity_checker
 description: "A robust, reactive Dart/Flutter package for monitoring network connectivity."
-version: 1.0.1
+version: 1.1.0
 repository: https://github.com/lorenacimpean/rx_connectivity_checker
 
 environment:
@@ -20,8 +20,6 @@ dependencies:
     sdk: flutter
   # Required for the Dart-based Linux implementation
   dbus: ^0.7.11
-  # Internal utility if required by your architecture
-  project_starter_kit: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -47,7 +45,7 @@ flutter:
         pluginClass: WindowsRxConnectivityChecker
         fileName: rx_connectivity_checker_plugin.cpp
       linux:
-        pluginClass: LinuxRxConnectivityChecker
+        dartPluginClass: LinuxRxConnectivityChecker
         fileName: src/linux_rx_connectivity_checker.dart
       web:
         fileName: src/web_rx_connectivity_checker.dart

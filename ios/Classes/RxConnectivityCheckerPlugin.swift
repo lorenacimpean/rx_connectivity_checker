@@ -101,16 +101,16 @@ class ConnectivityStreamHandler: NSObject, FlutterStreamHandler {
             case .satisfied:
                 // The network is usable (Internet accessible, Wifi connected, etc).
                 // Equivalent to Android's `onAvailable` or `onCapabilitiesChanged`.
-                status = "satisfied"
+                status = "available"
             case .unsatisfied:
                 // No network route available (Airplane mode, no signal).
                 // Equivalent to Android's `onLost`.
-                status = "unsatisfied"
+                status = "lost"
             case .requiresConnection:
                 // Network is available but requires activation (e.g. VPN on demand).
                 status = "requires_connection"
             @unknown default:
-                status = "unknown"
+                status = "lost"
             }
 
             // Send the event safely to Flutter

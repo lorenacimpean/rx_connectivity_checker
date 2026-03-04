@@ -20,7 +20,7 @@ Beyond monitoring local connection states, this library verifies end-to-end inte
 - **Federated Architecture** — native implementations for Android, iOS, macOS, Windows, and Linux.
 - **True Reachability** — distinguishes between "connected to a network" and "having internet access."
 - **Performance Optimised** — throttled pipeline and single-check-at-a-time concurrency guard prevent redundant probes.
-- **Modern Web Support** — WASM-ready using `package:web` and `dart:js_interop` with CORS-safe `no-cors` probes.
+- **Modern Web Support** — WASM-ready using `package:web` and `dart:js_interop` with intelligent CORS-aware probes.
 - **Energy Efficient** — leverages native system observers (`NWPathMonitor`, `ConnectivityManager`, `DBus`, NLM) to trigger checks only when necessary.
 - **Cold Observables** — internal timers and observers only start when the stream has active listeners.
 - **Zombie-Connection Detection** — periodic background checks catch cases where a device is locally connected but has no actual internet access.
@@ -148,7 +148,7 @@ final checker = ConnectivityChecker(client: MockHttpClient());
 | **iOS / macOS** | `NWPathMonitor` | Native Swift implementation with event deduplication. |
 | **Linux** | D-Bus / `NetworkManager` | Subscribes to `StateChanged` signals on the system bus. |
 | **Windows** | `INetworkListManager` | C++ COM interop for high-performance desktop tracking. |
-| **Web** | `fetch` API | Uses `no-cors` mode to bypass browser CORS restrictions. |
+| **Web** | `fetch` API | Uses `cors` mode; a CORS rejection is treated as reachable since the server responded. |
 
 ---
 
@@ -182,7 +182,7 @@ The Windows implementation uses COM interop. No manifest changes are required fo
 <Capability Name="internetClient" />
 ```
 
-Ensure your build environment targets **C++17 or later**.
+Ensure your build environment targets **C++20 or later** (required by the plugin's CMakeLists.txt).
 
 ### Linux
 
@@ -190,7 +190,7 @@ The Linux implementation communicates with `NetworkManager` via D-Bus. Most mode
 
 ### Web (CORS)
 
-The web implementation uses `mode: no-cors`. This allows the reachability probe to succeed even if the target server does not send CORS headers, because the validator only checks for the presence of a response, not its content.
+The web implementation uses `mode: cors`. If the fetch succeeds the endpoint is reachable. If the server responds with a CORS rejection (e.g. `TypeError`), the browser still contacted the server — the validator treats this as `online`. A true network failure (DNS error, no route) sets `navigator.onLine` to `false` and is correctly reported as `offline`.
 
 ---
 
@@ -211,4 +211,4 @@ flutter run
 
 ## Contributing
 
-Contributions are welcome. For bugs or feature requests, please file them on the [GitHub Issue Tracker](https://github.com/your-org/rx_connectivity_checker/issues).
+Contributions are welcome. For bugs or feature requests, please file them on the [GitHub Issue Tracker](https://github.com/lorenacimpean/rx_connectivity_checker/issues).
