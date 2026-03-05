@@ -27,11 +27,16 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE
         FLUTTER_PLUGIN_IMPL
 )
 
+# Fix #4: Added oleaut32 explicitly alongside ole32 and uuid.
+# ole32    — CoCreateInstance, CoInitializeEx, IConnectionPoint etc.
+# uuid     — COM interface IIDs (IID_INetworkListManagerEvents etc.)
+# oleaut32 — OLE Automation types used transitively by some NLM interfaces
 target_link_libraries(${PLUGIN_NAME} PRIVATE
         flutter
         flutter_wrapper_plugin
         ole32
         uuid
+        oleaut32
 )
 
 set(rx_connectivity_checker_bundled_libraries

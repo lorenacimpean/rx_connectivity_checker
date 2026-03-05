@@ -1,6 +1,6 @@
 PODS:
   - FlutterMacOS (1.0.0)
-  - rx_connectivity_checker (0.0.1):
+  - rx_connectivity_checker (1.0.1):
     - FlutterMacOS
 
 DEPENDENCIES:
@@ -15,7 +15,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  rx_connectivity_checker: 9ddf4653404f8ae17271c31e71126a0a583fcf21
+  rx_connectivity_checker: b88c990b67d99f090ee06acfd6d22d391dbb3c09
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 

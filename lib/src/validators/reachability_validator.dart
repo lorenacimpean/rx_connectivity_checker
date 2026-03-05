@@ -8,7 +8,6 @@ import 'reachability_validator_stub.dart'
 /// Abstract strategy for performing low-level network reachability probes.
 abstract class ReachabilityValidator {
   /// Unified factory that returns the platform-correct implementation.
-  /// The 'getValidator' function is defined in each of the three files above.
   factory ReachabilityValidator() => getValidator();
 
   /// Validates reachability by performing a network request.

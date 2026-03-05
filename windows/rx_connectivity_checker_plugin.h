@@ -8,9 +8,11 @@
 
 #include <windows.h>
 #include <netlistmgr.h>
-#include <wrl/client.h> // CRITICAL: This allows Microsoft::WRL::ComPtr
+#include <wrl/client.h>
 #include <memory>
 #include <atomic>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <functional>
 
@@ -35,43 +37,68 @@ namespace rx_connectivity_checker {
         std::function<void(NLM_CONNECTIVITY)> callback_;
     };
 
-    class RxConnectivityCheckerPlugin
-            : public flutter::Plugin,
-              public flutter::StreamHandler<flutter::EncodableValue> {
+    class RxConnectivityCheckerPlugin : public flutter::Plugin {
     public:
         static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
-        RxConnectivityCheckerPlugin();
+        RxConnectivityCheckerPlugin(HWND hwnd,
+                                    flutter::PluginRegistrarWindows *registrar);
         virtual ~RxConnectivityCheckerPlugin();
 
         RxConnectivityCheckerPlugin(const RxConnectivityCheckerPlugin&) = delete;
         RxConnectivityCheckerPlugin& operator=(const RxConnectivityCheckerPlugin&) = delete;
 
-    private:
-        // StreamHandler methods
+        // Exposed as public so StreamHandlerDelegate (defined in the .cpp) can
+        // forward calls to these without friendship gymnastics.
         std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
                 const flutter::EncodableValue* arguments,
-                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override;
+                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events);
 
         std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
-                const flutter::EncodableValue* arguments) override;
+                const flutter::EncodableValue* arguments);
 
+    private:
         // MethodChannel handler
         void HandleMethodCall(
                 const flutter::MethodCall<flutter::EncodableValue> &method_call,
                 std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
+        // Window proc delegate — marshals COM callbacks back to the platform thread.
+        std::optional<LRESULT> HandleWindowMessage(
+                HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+
         // Internal helpers
         void StartListening();
         void StopListening();
         void BroadcastStatus(NLM_CONNECTIVITY connectivity);
+        std::string ConnectivityToString(NLM_CONNECTIVITY connectivity);
+
+        // Window handle used to PostMessage from the COM background thread.
+        HWND hwnd_;
+
+        // Non-owning pointer; the registrar outlives the plugin.
+        flutter::PluginRegistrarWindows *registrar_;
+        int window_proc_id_ = -1;
+
+        // Custom window message registered once per process.
+        static UINT wm_connectivity_changed_;
+
+        // Staging area for the connectivity value posted from the COM thread.
+        std::atomic<DWORD> pending_connectivity_{NLM_CONNECTIVITY_DISCONNECTED};
 
         // WRL Smart Pointers
         Microsoft::WRL::ComPtr<INetworkListManager> network_list_manager_;
         Microsoft::WRL::ComPtr<IConnectionPoint> connection_point_;
         DWORD cookie_ = 0;
 
+        // Protects event_sink_ against concurrent access.
+        std::mutex sink_mutex_;
         std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> event_sink_;
+
+        // Lifetime guard: flipped to false in the destructor *before* StopListening.
+        // The COM callback lambda holds a weak_ptr so it can bail out safely if
+        // the plugin is already being torn down.
+        std::shared_ptr<bool> alive_;
     };
 
 }  // namespace rx_connectivity_checker

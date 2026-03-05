@@ -95,3 +95,11 @@ gitignore
 
 # Obfuscation artifacts
 *.map
+
+# FVM Version Cache
+.fvm/.fvmrc
+.fvm/
+.fvmrc
+
+# Claude Code
+CLAUDE.md

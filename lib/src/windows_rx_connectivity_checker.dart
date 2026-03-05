@@ -15,15 +15,20 @@ class WindowsRxConnectivityChecker extends RxConnectivityCheckerPlatform {
     'rx_connectivity_checker/events',
   );
 
+  /// Cached stream — initialised once so multiple subscribers share a single
+  /// native channel subscription rather than creating independent ones.
+  Stream<String>? _cachedStream;
+
   /// Returns a stream of strings matching the Android implementation:
   /// "available", "lost", "capabilities_changed".
   ///
   /// The main [ConnectivityChecker] listens to this to trigger validation.
   @override
   Stream<String> get platformStatusStream {
-    return _eventChannel.receiveBroadcastStream().map((dynamic event) {
-      return event.toString();
-    });
+    _cachedStream ??= _eventChannel
+        .receiveBroadcastStream()
+        .map((dynamic event) => event.toString());
+    return _cachedStream!;
   }
 
   @override
