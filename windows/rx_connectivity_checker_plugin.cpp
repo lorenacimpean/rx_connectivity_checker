@@ -76,6 +76,20 @@ namespace rx_connectivity_checker {
         std::weak_ptr<RxConnectivityCheckerPlugin> plugin_;
     };
 
+// ---------------------------------------------------------------------------
+// PluginHolder
+//
+// Owns the shared_ptr so the registrar (which requires a unique_ptr<Plugin>)
+// can keep the plugin alive for the engine's lifetime.
+// ---------------------------------------------------------------------------
+    class PluginHolder : public flutter::Plugin {
+    public:
+        explicit PluginHolder(std::shared_ptr<RxConnectivityCheckerPlugin> plugin)
+                : plugin_(std::move(plugin)) {}
+    private:
+        std::shared_ptr<RxConnectivityCheckerPlugin> plugin_;
+    };
+
 // --- Plugin Implementation ---
 
     void RxConnectivityCheckerPlugin::RegisterWithRegistrar(
@@ -114,7 +128,7 @@ namespace rx_connectivity_checker {
 
         // Hand the plugin to the registrar so it stays alive for the engine's
         // lifetime (registrar keeps a unique_ptr<Plugin> internally).
-        registrar->AddPlugin(std::move(plugin));
+        registrar->AddPlugin(std::make_unique<PluginHolder>(plugin));
     }
 
     RxConnectivityCheckerPlugin::RxConnectivityCheckerPlugin(
