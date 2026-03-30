@@ -35,7 +35,7 @@ Add `rx_connectivity_checker` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  rx_connectivity_checker: ^1.1.0
+  rx_connectivity_checker: ^1.0.0
 ```
 
 Then run:

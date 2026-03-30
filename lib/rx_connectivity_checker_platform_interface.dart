@@ -21,7 +21,7 @@ abstract class RxConnectivityCheckerPlatform extends PlatformInterface {
   ///
   /// Returns a stream of strings representing the status (e.g. "satisfied", "lost").
   Stream<String> get platformStatusStream {
-    throw UnimplementedError('onConnectivityChanged has not been implemented.');
+    throw UnimplementedError('platformStatusStream has not been implemented.');
   }
 
   Future<String?> getPlatformVersion() {
