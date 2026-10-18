@@ -1,0 +1,40 @@
+name: Test Flutter Web Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      # The example app does not commit a web/ folder; scaffold it for the build only.
+      - name: Scaffold web platform for example
+        working-directory: example
+        run: flutter create --platforms=web --project-name rx_connectivity_checker_example .
+
+      - name: Get dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Build Web (JavaScript)
+        working-directory: example
+        run: flutter build web
+
+      - name: Build Web (WebAssembly)
+        working-directory: example
+        run: flutter build web --wasm
