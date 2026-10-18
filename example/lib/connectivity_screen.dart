@@ -179,7 +179,7 @@ class _ConnectivityScreenState extends State<ConnectivityScreen> {
     _checker = ConnectivityChecker(
       checkFrequency: const Duration(seconds: 60),
       checkSlowConnection: true,
-      timeout: const Duration(seconds: 3),
+      timeout: const Duration(seconds: 1),
     );
     _sub = _checker.connectivityStream.listen((status) {
       setState(() {

@@ -87,10 +87,8 @@ gitignore
 /example/.dart_tool/
 /example/.pub/
 /example/ios/Pods/
-/example/ios/Flutter/
 /example/ios/.symlinks/
 /example/pubspec.lock
-/example/ios/Runner.xcworkspace
 /example/ios/Runner.xcodeproj/project.xcworkspace
 
 # Obfuscation artifacts

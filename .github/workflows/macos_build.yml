@@ -15,19 +15,10 @@ defaults:
     shell: bash
 
 jobs:
-  build:
-    name: build (${{ matrix.package-manager }})
+  swiftpm:
+    name: build (swiftpm)
     runs-on: macos-latest
     timeout-minutes: 30
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - package-manager: swiftpm
-            spm-flag: --enable-swift-package-manager
-          - package-manager: cocoapods
-            spm-flag: --no-enable-swift-package-manager
 
     steps:
       - uses: actions/checkout@v7
@@ -37,22 +28,59 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Select dependency manager (${{ matrix.package-manager }})
-        run: flutter config ${{ matrix.spm-flag }}
+      - name: Enable Swift Package Manager
+        run: flutter config --enable-swift-package-manager
 
       - name: Get dependencies
         working-directory: example
         run: flutter pub get
 
-      - name: Build macOS (Debug)
+      - name: Build example app (Debug)
         working-directory: example
         run: flutter build macos --debug 2>&1 | tee build.log
 
       - name: Assert plugin is integrated via Swift Package Manager
-        if: matrix.package-manager == 'swiftpm'
         working-directory: example
         run: |
           if grep -Eq "do not support Swift Package Manager|does not have Swift Package Manager support" build.log; then
             echo "::error::rx_connectivity_checker was not integrated via Swift Package Manager"
+            exit 1
+          fi
+
+  # The example app is migrated to Swift Package Manager, and a migrated plugin
+  # example cannot be built with CocoaPods. A fresh app that depends on the
+  # plugin by path exercises the podspec the way CocoaPods users consume it.
+  cocoapods:
+    name: build (cocoapods)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Disable Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+
+      - name: Create CocoaPods consumer app
+        working-directory: ${{ runner.temp }}
+        run: |
+          flutter create --platforms=macos --project-name cocoapods_consumer cocoapods_consumer
+          cd cocoapods_consumer
+          flutter pub add "rx_connectivity_checker:{\"path\":\"$GITHUB_WORKSPACE\"}"
+
+      - name: Build consumer app (Debug)
+        working-directory: ${{ runner.temp }}/cocoapods_consumer
+        run: flutter build macos --debug
+
+      - name: Assert plugin is integrated via CocoaPods
+        working-directory: ${{ runner.temp }}/cocoapods_consumer
+        run: |
+          if ! grep -q "rx_connectivity_checker" macos/Podfile.lock; then
+            echo "::error::rx_connectivity_checker was not integrated via CocoaPods"
             exit 1
           fi

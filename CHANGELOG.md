@@ -2,16 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## 1.1.0
+## 2.0.0
+
+### Breaking changes
+
+- **`connectivityStream` emits only when the status changes.** Repeated identical results (e.g. `online` from every periodic check) are no longer re-emitted. A new listener immediately receives the last known status instead of always starting from `unknown`.
+- **`checkConnectivity()` always runs a fresh check.** It is no longer throttled and no longer returns the result of an older in-flight check; it also restarts the periodic timer.
+- **A native "network lost" event emits `offline` immediately**, without an HTTP probe.
+- **Periodic checks pause while the app is hidden** (backgrounded or minimised) and resume with an immediate check when it becomes visible again.
+- `ConnectivityCheckerConstants.defaultThrottleTime` is deprecated and unused.
 
 ### Added
 
 - **Swift Package Manager support** — the iOS and macOS implementations now ship a `Package.swift`, removing the "does not have Swift Package Manager support" warning. CocoaPods remains fully supported. SwiftPM integration requires Flutter 3.44+.
-- **`recheckDelays`** — new optional `ConnectivityChecker` parameter controlling the follow-up checks after a native network change (default: 1 s, 2 s, 4 s, 8 s).
+- **`recheckDelays`** — new optional `ConnectivityChecker` parameter controlling the follow-up checks after a native network change (default: 250 ms, 500 ms, 1 s, 2 s, 4 s).
 
 ### Fixed
 
-- **`online` not emitted after a network comes back** (e.g. turning Wi-Fi back on on macOS) — the check fired by the native "available" event often ran before the new link could carry traffic (DHCP/DNS still settling) and reported `offline`; with no further native event, recovery waited for the next periodic check. In addition, a native event arriving while a check was still in flight was dropped. Native events now trigger a check followed by back-off re-checks until `online`, and each new event restarts that schedule instead of being dropped.
+- **Stream stopped working after every listener cancelled** — `connectivityStream` used `shareReplay`, which closes for good once the last listener cancels, so a screen subscribing later received one stale value and then nothing. Monitoring now starts with the first listener, stops with the last and restarts when a new listener subscribes.
+- **Slow reaction to native network changes** — every native event waited for an HTTP probe before anything was emitted (on "lost", up to `timeout`). "Lost" is now reported instantly; "available" triggers an immediate probe with quick follow-up re-checks until `online`, since a link that has just come up often cannot carry traffic yet. A native event arriving while a check is in flight is no longer dropped, and results made stale by a newer event are discarded.
+- **Android reported per-network events** — the plugin listened to every network, so turning off Wi-Fi reported "lost" even when mobile data took over, and signal-strength changes triggered constant probes. It now follows the system default network only, reports "lost" at startup when there is no network, and debounces loss by 300 ms to absorb network handovers.
 - **Native builds failing with `Undefined name 'LinuxRxConnectivityChecker'`** — the Linux plugin declaration used `fileName` instead of `dartFileName`, so the generated plugin registrant imported the public library, which no longer exports the Linux implementation. The registrant now imports `src/linux_rx_connectivity_checker.dart` directly.
 - **Privacy manifest is now bundled** — `PrivacyInfo.xcprivacy` was present but never included by the podspecs. It is now packaged via `resource_bundles` (CocoaPods) and `resources` (SwiftPM) on both iOS and macOS.
 

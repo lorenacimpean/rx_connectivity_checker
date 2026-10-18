@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'rx_connectivity_checker'
-  s.version          = '1.1.0'
+  s.version          = '2.0.0'
   s.summary          = 'iOS implementation of rx_connectivity_checker'
   s.description      = 'Robust reactive connectivity monitoring for iOS.'
   s.homepage         = 'https://github.com/lorenacimpean/rx_connectivity_checker'

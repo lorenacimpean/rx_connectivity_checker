@@ -3,8 +3,6 @@ package io.github.lorenacimpean.rx_connectivity_checker
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -47,79 +45,91 @@ class RxConnectivityCheckerPlugin : FlutterPlugin, MethodCallHandler {
     }
 }
 
+/**
+ * Streams the state of the system default network to Dart.
+ *
+ * - "available" is sent whenever a default network appears or the default
+ *   network changes (e.g. Wi-Fi → mobile data), so Dart re-validates access.
+ * - "lost" is sent when there is no default network at all. It is delayed by
+ *   [LOST_DEBOUNCE_MS] so a handover between networks does not report a false
+ *   loss, and it is ignored for networks that are no longer the default.
+ *
+ * The current state is sent as soon as Dart starts listening.
+ */
 class ConnectivityStreamHandler(private val context: Context) : EventChannel.StreamHandler {
     companion object {
-        private const val TAG = "RxConnectivityChecker"  // ← added
+        private const val TAG = "RxConnectivityChecker"
+        private const val LOST_DEBOUNCE_MS = 300L
     }
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val connectivityManager: ConnectivityManager by lazy {
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     }
 
+    private var eventSink: EventChannel.EventSink? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var isRegistered = false
+    private var defaultNetwork: Network? = null
+    private val sendLost = Runnable { send("lost") }
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-
+        eventSink = events
+        defaultNetwork = null
+        val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                sendEvent(events, "available")
+                mainHandler.post { onDefaultNetworkAvailable(network) }
             }
 
             override fun onLost(network: Network) {
-                sendEvent(events, "lost")
-            }
-
-            override fun onCapabilitiesChanged(
-                network: Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                sendEvent(events, "capabilities_changed")
-            }
-
-            override fun onLosing(network: Network, maxMsToLive: Int) {
-                sendEvent(events, "losing")
-            }
-
-            override fun onUnavailable() {
-                sendEvent(events, "unavailable")
+                mainHandler.post { onDefaultNetworkLost(network) }
             }
         }
-
         try {
-            connectivityManager.registerNetworkCallback(request, networkCallback!!)
-            isRegistered = true
+            connectivityManager.registerDefaultNetworkCallback(callback)
+            networkCallback = callback
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to register network callback", e)
+            Log.e(TAG, "Failed to register default network callback", e)
             events?.error("REGISTRATION_FAILED", e.message, null)
+            return
         }
+        // onAvailable fires immediately when a default network exists; without
+        // one nothing fires, so report the "lost" state explicitly.
+        if (connectivityManager.activeNetwork == null) send("lost")
     }
 
     override fun onCancel(arguments: Any?) {
-        if (isRegistered) {
+        mainHandler.removeCallbacks(sendLost)
+        networkCallback?.let {
             try {
-                networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
+                connectivityManager.unregisterNetworkCallback(it)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to unregister network callback", e)
-            } finally {
-                isRegistered = false
             }
         }
         networkCallback = null
+        defaultNetwork = null
+        eventSink = null
     }
 
-    private fun sendEvent(events: EventChannel.EventSink?, status: String) {
-        mainHandler.post {
-            try {
-                events?.success(status)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not send event '$status' — sink may be closed: ${e.message}")
-            }
+    private fun onDefaultNetworkAvailable(network: Network) {
+        mainHandler.removeCallbacks(sendLost)
+        defaultNetwork = network
+        send("available")
+    }
+
+    private fun onDefaultNetworkLost(network: Network) {
+        if (network != defaultNetwork) return
+        defaultNetwork = null
+        mainHandler.removeCallbacks(sendLost)
+        mainHandler.postDelayed(sendLost, LOST_DEBOUNCE_MS)
+    }
+
+    private fun send(status: String) {
+        try {
+            eventSink?.success(status)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not send event '$status' — sink may be closed: ${e.message}")
         }
     }
 }
