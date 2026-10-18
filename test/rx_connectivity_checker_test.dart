@@ -136,6 +136,187 @@ void main() {
       },
     );
   });
+
+  group('ConnectivityChecker - Re-checks after a native network change', () {
+    late StreamController<String> platformEvents;
+
+    setUp(() {
+      platformEvents = StreamController<String>();
+      when(
+        () => mockPlatform.platformStatusStream,
+      ).thenAnswer((_) => platformEvents.stream);
+    });
+
+    tearDown(() => platformEvents.close());
+
+    ConnectivityChecker buildChecker(List<Duration> recheckDelays) =>
+        ConnectivityChecker(
+          platform: mockPlatform,
+          client: mockClient,
+          checkFrequency: const Duration(hours: 1),
+          recheckDelays: recheckDelays,
+        );
+
+    void stubResponses(List<Future<Response>> responses) {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) => responses.length > 1 ? responses.removeAt(0) : responses.first,
+      );
+    }
+
+    test(
+      'emits online from a follow-up check when the check fired by the event fails',
+      () async {
+        final sut = buildChecker(const [Duration(milliseconds: 10)]);
+        stubResponses([
+          Future.value(Response('', 503)),
+          Future.value(Response('', 204)),
+        ]);
+        final expectation = expectLater(
+          sut.connectivityStream,
+          emitsInOrder([
+            ConnectivityStatus.unknown,
+            ConnectivityStatus.offline,
+            ConnectivityStatus.online,
+          ]),
+        );
+
+        platformEvents.add('available');
+
+        await expectation;
+        verify(
+          () => mockClient.get(any(), headers: any(named: 'headers')),
+        ).called(2);
+      },
+    );
+
+    test('stops re-checking after the first online result', () async {
+      final sut = buildChecker(const [
+        Duration(milliseconds: 10),
+        Duration(milliseconds: 10),
+      ]);
+      stubResponses([Future.value(Response('', 204))]);
+      final expectation = expectLater(
+        sut.connectivityStream,
+        emitsInOrder([ConnectivityStatus.unknown, ConnectivityStatus.online]),
+      );
+
+      platformEvents.add('available');
+      await expectation;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      verify(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).called(1);
+    });
+
+    test(
+      'stops after the last follow-up check when the network stays unreachable',
+      () async {
+        final sut = buildChecker(const [
+          Duration(milliseconds: 10),
+          Duration(milliseconds: 10),
+        ]);
+        stubResponses([Future.value(Response('', 503))]);
+        final expectation = expectLater(
+          sut.connectivityStream,
+          emitsInOrder([
+            ConnectivityStatus.unknown,
+            ConnectivityStatus.offline,
+            ConnectivityStatus.offline,
+            ConnectivityStatus.offline,
+          ]),
+        );
+
+        platformEvents.add('lost');
+        await expectation;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        verify(
+          () => mockClient.get(any(), headers: any(named: 'headers')),
+        ).called(3);
+      },
+    );
+
+    test(
+      'performs a single check when no re-check delays are configured',
+      () async {
+        final sut = buildChecker(const []);
+        stubResponses([Future.value(Response('', 503))]);
+        final expectation = expectLater(
+          sut.connectivityStream,
+          emitsInOrder(
+              [ConnectivityStatus.unknown, ConnectivityStatus.offline]),
+        );
+
+        platformEvents.add('lost');
+        await expectation;
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        verify(
+          () => mockClient.get(any(), headers: any(named: 'headers')),
+        ).called(1);
+      },
+    );
+
+    test(
+      'a newer native event cancels the pending follow-up checks of the previous one',
+      () async {
+        final sut = buildChecker(const [Duration(milliseconds: 100)]);
+        stubResponses([Future.value(Response('', 503))]);
+        final emitted = <ConnectivityStatus>[];
+        final subscription = sut.connectivityStream.listen(emitted.add);
+
+        platformEvents.add('lost');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        platformEvents.add('available');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await subscription.cancel();
+
+        expect(emitted, [
+          ConnectivityStatus.unknown,
+          ConnectivityStatus.offline,
+          ConnectivityStatus.offline,
+          ConnectivityStatus.offline,
+        ]);
+        verify(
+          () => mockClient.get(any(), headers: any(named: 'headers')),
+        ).called(3);
+      },
+    );
+
+    test(
+      'a native event during an in-flight check still leads to an online result',
+      () async {
+        final sut = buildChecker(const [Duration(milliseconds: 10)]);
+        final inFlightResponse = Completer<Response>();
+        stubResponses([
+          inFlightResponse.future,
+          Future.value(Response('', 204)),
+        ]);
+        final expectation = expectLater(
+          sut.connectivityStream,
+          emitsInOrder([
+            ConnectivityStatus.unknown,
+            ConnectivityStatus.offline,
+            ConnectivityStatus.online,
+          ]),
+        );
+
+        platformEvents.add('lost');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        platformEvents.add('available');
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        inFlightResponse.complete(Response('', 503));
+
+        await expectation;
+        verify(
+          () => mockClient.get(any(), headers: any(named: 'headers')),
+        ).called(2);
+      },
+    );
+  });
 }
 
 class MockHttpClient extends Mock implements IHttpClient {}

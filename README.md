@@ -9,7 +9,7 @@ A **robust, reactive, and high-performance** federated Flutter library for monit
 
 Beyond monitoring local connection states, this library verifies end-to-end internet access through active network probes. Validation is triggered by three distinct events:
 
-- **Platform Change Events** — a probe fires immediately when the system detects a network interface change (e.g. switching from Wi-Fi to Cellular).
+- **Platform Change Events** — a probe fires immediately when the system detects a network interface change (e.g. switching from Wi-Fi to Cellular). If it fails, follow-up probes run on a short back-off (1 s, 2 s, 4 s, 8 s by default, configurable via `recheckDelays`) until the network is reachable — a link that has just come up often cannot carry traffic yet.
 - **Periodic Polling** — automated checks run at a configurable interval to catch "silent" losses (e.g. a router losing its uplink while Wi-Fi remains connected).
 - **Manual Triggers** — one-off checks can be requested programmatically for critical operations such as a high-priority API submission.
 
