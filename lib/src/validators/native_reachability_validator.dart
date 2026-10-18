@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:rx_connectivity_checker/rx_connectivity_checker.dart';
 
@@ -13,7 +12,7 @@ class NativeReachabilityValidator implements ReachabilityValidator {
   Future<ConnectivityStatus> validate({
     required String url,
     required Duration timeout,
-    required bool checkSlowConnection,
+    Duration? slowThreshold,
     Map<String, String>? headers,
     IHttpClient? client,
   }) async {
@@ -21,28 +20,22 @@ class NativeReachabilityValidator implements ReachabilityValidator {
     // callers constructing NativeReachabilityValidator directly (e.g. in
     // tests) do not hit a null-dereference crash.
     final effectiveClient = client ?? DefaultHttpClient();
+    final stopwatch = Stopwatch()..start();
     try {
       final response = await effectiveClient
           .get(Uri.parse(url), headers: headers)
           .timeout(timeout);
 
       return (response.statusCode >= 200 && response.statusCode < 300)
-          ? ConnectivityStatus.online
+          ? statusForReachedServer(
+              elapsed: stopwatch.elapsed,
+              slowThreshold: slowThreshold,
+            )
           : ConnectivityStatus.offline;
-    } on TimeoutException {
-      if (Platform.isWindows) {
-        // The Windows networking stack rarely exhibits the degraded "slow" states
-        // typical of mobile connections. A TimeoutException on this platform
-        // strongly indicates an offline state or blocked route, regardless
-        // of the configured timeout duration.
-        return ConnectivityStatus.offline;
-      }
-      return checkSlowConnection
-          ? ConnectivityStatus.slow
-          : ConnectivityStatus.offline;
-    } on SocketException {
-      return ConnectivityStatus.offline;
     } catch (_) {
+      // No response within the timeout (e.g. a network without internet
+      // access, where requests hang), a socket error or any other failure:
+      // the server was not reached.
       return ConnectivityStatus.offline;
     }
   }

@@ -10,8 +10,8 @@ A **robust, reactive, and high-performance** federated Flutter library for monit
 Beyond monitoring local connection states, this library verifies end-to-end internet access through active network probes. Validation is triggered by three distinct events:
 
 - **Platform Change Events** — when the system reports that the network is gone (e.g. Wi-Fi and mobile data turned off), `offline` is emitted instantly, without a probe. When a network becomes available or changes, a probe fires immediately; if it fails, follow-up probes run on a short back-off (250 ms, 500 ms, 1 s, 2 s, 4 s by default, configurable via `recheckDelays`) until the network is reachable — a link that has just come up often cannot carry traffic yet.
-- **Periodic Polling** — automated checks run at a configurable interval to catch "silent" losses (e.g. a router losing its uplink while Wi-Fi remains connected). Polling pauses while the app is hidden and resumes with an immediate check when it becomes visible again.
-- **Manual Triggers** — `checkConnectivity()` runs a fresh probe right away and restarts the periodic timer.
+- **Periodic Polling** — automated checks run every `checkFrequency` while online, to catch "silent" losses (e.g. a router losing its uplink while Wi-Fi remains connected), and every `offlineCheckFrequency` (5 s by default) while not online, to catch reconnections the platform does not report (e.g. the iOS Simulator). Polling pauses while the app is hidden and resumes with an immediate check when it becomes visible again.
+- **Manual Triggers** — `checkConnectivity()` runs a fresh probe right away, always emits its result and restarts the periodic timer.
 
 ---
 
@@ -24,14 +24,14 @@ Beyond monitoring local connection states, this library verifies end-to-end inte
 - **Energy Efficient** — leverages native system observers (`NWPathMonitor`, `ConnectivityManager`, `DBus`, NLM) to trigger checks only when necessary.
 - **Shared, Restartable Stream** — one checker can back the whole app session or only some screens: monitoring starts with the first listener, stops with the last, restarts when a screen listens again, and new listeners immediately receive the last known status.
 - **Zombie-Connection Detection** — periodic background checks catch cases where a device is locally connected but has no actual internet access.
-- **Manual Check Support** — `checkConnectivity()` always runs a fresh, unthrottled check and restarts the periodic timer.
+- **Manual Check Support** — `checkConnectivity()` always runs a fresh, unthrottled check, always emits its result and restarts the periodic timer.
 - **Testing Friendly** — full dependency injection via `IHttpClient` and `ReachabilityValidator` eliminates the need for real network access in tests.
 
 ---
 
 ## Installation
 
-Add `rx_connectivity_checker` to your `pubspec.yaml`:
+Requires Flutter 3.44 or later. Add `rx_connectivity_checker` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -56,13 +56,14 @@ Initialise the checker with a reliable endpoint. Google's `generate_204` is the 
 final connectivityChecker = ConnectivityChecker(
   url: 'https://connectivitycheck.gstatic.com/generate_204',
   checkFrequency: const Duration(seconds: 30),
-  checkSlowConnection: true, // maps timeouts to ConnectivityStatus.slow (see platform notes below)
+  checkSlowConnection: true, // successful responses slower than slowConnectionThreshold report `slow`
+  slowConnectionThreshold: const Duration(seconds: 3),
 );
 ```
 
 ### Reactive UI updates
 
-Use `connectivityStream` to rebuild your UI whenever the network state changes. A new listener immediately receives the last known status (`ConnectivityStatus.unknown` before the first check completes); after that the stream emits only when the status changes.
+Use `connectivityStream` to rebuild your UI whenever the network state changes. A new listener immediately receives the last known status (`ConnectivityStatus.unknown` before the first check completes); after that the stream emits when the status changes, and for every `checkConnectivity()` result.
 
 ```dart
 StreamBuilder<ConnectivityStatus>(
@@ -92,7 +93,7 @@ Create a single `ConnectivityChecker` (e.g. in your dependency-injection setup) 
 
 ### Manual one-off checks
 
-For critical actions (like submitting a form), perform an immediate check. Every call runs a fresh probe — it never reuses an older in-flight one — and restarts the periodic timer.
+For critical actions (like submitting a form), perform an immediate check. Every call runs a fresh probe — it never reuses an older in-flight one — completes within `timeout`, emits its result on `connectivityStream` (even when the status is unchanged) and restarts the periodic timer.
 
 ```dart
 final status = await connectivityChecker.checkConnectivity();
@@ -123,25 +124,15 @@ final checker = ConnectivityChecker(client: MockHttpClient());
 | Value | Meaning |
 | :--- | :--- |
 | `online` | Remote endpoint responded with a 2xx status code. |
-| `offline` | Endpoint unreachable or returned a non-2xx response. |
-| `slow` | Request timed out and `checkSlowConnection` is `true` (not available on Windows — see below). |
+| `offline` | Endpoint unreachable, no response within `timeout`, or a non-2xx response. |
+| `slow` | A 2xx response that took longer than `slowConnectionThreshold`, with `checkSlowConnection` set to `true`. |
 | `unknown` | Initial state before the first check completes. |
 
 ---
 
 ## Platform-specific behaviour
 
-> **Important:** platform behaviour differs in one significant way. Read the Windows row carefully if you set `checkSlowConnection: true`.
-
-| Platform | Timeout maps to | `checkSlowConnection` honoured | Native signal source |
-| :--- | :--- | :--- | :--- |
-| Android | `slow` or `offline` | ✅ Yes | `ConnectivityManager` / `NetworkCallback` |
-| iOS / macOS | `slow` or `offline` | ✅ Yes | `NWPathMonitor` |
-| Linux | `slow` or `offline` | ✅ Yes | `NetworkManager` via D-Bus |
-| **Windows** | **always `offline`** | ❌ No — silently ignored | `INetworkListManager` (NLM COM) |
-| Web | `slow` or `offline` | ✅ Yes | `window` `online`/`offline` events |
-
-**Windows rationale:** The Windows networking stack rarely exhibits the degraded "slow" states typical of mobile connections. A request timeout on Windows strongly indicates an offline state or a blocked route. Consequently, `ConnectivityStatus.slow` is never emitted on Windows regardless of the `checkSlowConnection` setting.
+**Slow vs. offline:** a request that gets no response within `timeout` is always `offline`, on every platform — a network without internet access (for example an emulator whose Wi-Fi has no upstream) makes requests hang rather than fail. `slow` is reserved for connections that work but respond slower than `slowConnectionThreshold`; keep the threshold below `timeout`, otherwise `slow` can never occur.
 
 **Web limitation:** The web implementation uses the browser's native `fetch()` API. `IHttpClient` injection and custom `headers` are **not supported** on web — passing either has no effect. Use a native platform build if you need header or client injection.
 
@@ -172,7 +163,7 @@ Add the following permissions to `android/app/src/main/AndroidManifest.xml`:
 
 ### iOS / macOS
 
-The plugin supports both **Swift Package Manager** and **CocoaPods** — no extra setup is needed for either. Swift Package Manager integration requires Flutter 3.44 or later; on older Flutter versions keep it disabled and CocoaPods is used.
+The plugin supports both **Swift Package Manager** and **CocoaPods** — no extra setup is needed for either.
 
 No additional permissions are required for iOS.
 

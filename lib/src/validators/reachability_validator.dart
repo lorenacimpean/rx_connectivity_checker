@@ -11,11 +11,25 @@ abstract class ReachabilityValidator {
   factory ReachabilityValidator() => getValidator();
 
   /// Validates reachability by performing a network request.
+  ///
+  /// A successful response is [ConnectivityStatus.online], or
+  /// [ConnectivityStatus.slow] when it took longer than [slowThreshold] (slow
+  /// detection is off when [slowThreshold] is null). No response within
+  /// [timeout], or any failure, is [ConnectivityStatus.offline].
   Future<ConnectivityStatus> validate({
     required String url,
     required Duration timeout,
-    required bool checkSlowConnection,
+    Duration? slowThreshold,
     Map<String, String>? headers,
     IHttpClient? client,
   });
 }
+
+/// The status of a request that reached the server after [elapsed].
+ConnectivityStatus statusForReachedServer({
+  required Duration elapsed,
+  required Duration? slowThreshold,
+}) =>
+    slowThreshold != null && elapsed > slowThreshold
+        ? ConnectivityStatus.slow
+        : ConnectivityStatus.online;

@@ -14,7 +14,7 @@ class WebReachabilityValidator implements ReachabilityValidator {
   Future<ConnectivityStatus> validate({
     required String url,
     required Duration timeout,
-    required bool checkSlowConnection,
+    Duration? slowThreshold,
     Map<String, String>? headers,
     IHttpClient? client,
   }) async {
@@ -29,6 +29,7 @@ class WebReachabilityValidator implements ReachabilityValidator {
       );
     }
 
+    final stopwatch = Stopwatch()..start();
     try {
       // no-cors avoids preflight and CORS header requirements. The fetch
       // resolves with an opaque response on success (server reached = online)
@@ -41,11 +42,12 @@ class WebReachabilityValidator implements ReachabilityValidator {
 
       await web.window.fetch(url.toJS, fetchOptions).toDart.timeout(timeout);
 
-      return ConnectivityStatus.online;
+      return statusForReachedServer(
+        elapsed: stopwatch.elapsed,
+        slowThreshold: slowThreshold,
+      );
     } on TimeoutException {
-      return checkSlowConnection
-          ? ConnectivityStatus.slow
-          : ConnectivityStatus.offline;
+      return ConnectivityStatus.offline;
     } catch (_) {
       // TypeError / NetworkError: genuine network failure.
       // Use navigator.onLine as a secondary signal.

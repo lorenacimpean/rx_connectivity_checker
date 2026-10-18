@@ -23,6 +23,28 @@ abstract final class MockObjects {
     return client;
   }
 
+  /// A client answering every request with [statusCode] after [delay].
+  static MockHttpClient delayedHttpClient({
+    required int statusCode,
+    required Duration delay,
+  }) {
+    final client = MockHttpClient();
+    when(
+      () => client.get(any(), headers: any(named: 'headers')),
+    ).thenAnswer((_) => Future.delayed(delay, () => Response('', statusCode)));
+    return client;
+  }
+
+  /// A client whose requests never complete, like on a network without
+  /// internet access.
+  static MockHttpClient unresponsiveHttpClient() {
+    final client = MockHttpClient();
+    when(
+      () => client.get(any(), headers: any(named: 'headers')),
+    ).thenAnswer((_) => Completer<Response>().future);
+    return client;
+  }
+
   /// A platform whose native events are read from [events].
   static MockRxConnectivityCheckerPlatform platform(Stream<String> events) {
     final platform = MockRxConnectivityCheckerPlatform();

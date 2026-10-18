@@ -24,11 +24,13 @@ void main() {
     MockHttpClient client, {
     List<Duration> recheckDelays = const [],
     Duration checkFrequency = const Duration(hours: 1),
+    Duration offlineCheckFrequency = const Duration(hours: 1),
   }) =>
       ConnectivityChecker(
         platform: MockObjects.platform(platformEvents.stream),
         client: client,
         checkFrequency: checkFrequency,
+        offlineCheckFrequency: offlineCheckFrequency,
         recheckDelays: recheckDelays,
       );
 
@@ -208,18 +210,70 @@ void main() {
   });
 
   group('periodic checks', () {
-    test('check at every interval while a listener is subscribed', () async {
+    test('check every checkFrequency while online', () async {
       final client = MockObjects.httpClient([MockObjects.response(204)]);
       final sut = buildChecker(
         client,
         checkFrequency: const Duration(milliseconds: 30),
       );
+      recordEmissions(sut);
+      platformEvents.add('available');
+      await wait(10);
+      clearInteractions(client);
 
-      final emitted = recordEmissions(sut);
       await wait(110);
 
-      expect(emitted, [ConnectivityStatus.unknown, ConnectivityStatus.online]);
       verifyChecks(client, greaterThanOrEqualTo(2));
+    });
+
+    test('check every offlineCheckFrequency while not online', () async {
+      final client = MockObjects.httpClient([MockObjects.response(503)]);
+      final sut = buildChecker(
+        client,
+        offlineCheckFrequency: const Duration(milliseconds: 20),
+      );
+
+      final emitted = recordEmissions(sut);
+      await wait(90);
+
+      expect(emitted, [ConnectivityStatus.unknown, ConnectivityStatus.offline]);
+      verifyChecks(client, greaterThanOrEqualTo(2));
+    });
+
+    test('switch to checkFrequency once online', () async {
+      final client = MockObjects.httpClient([MockObjects.response(204)]);
+      final sut = buildChecker(
+        client,
+        offlineCheckFrequency: const Duration(milliseconds: 20),
+      );
+
+      final emitted = recordEmissions(sut);
+      await wait(90);
+
+      expect(emitted, [ConnectivityStatus.unknown, ConnectivityStatus.online]);
+      verifyChecks(client, 1);
+    });
+
+    test('detect a reconnection the platform never reports', () async {
+      final client = MockObjects.httpClient([MockObjects.response(204)]);
+      final sut = buildChecker(
+        client,
+        offlineCheckFrequency: const Duration(milliseconds: 20),
+      );
+      final emitted = recordEmissions(sut);
+      platformEvents.add('available');
+      await wait(10);
+
+      platformEvents.add('lost');
+      await wait(50);
+
+      expect(emitted, [
+        ConnectivityStatus.unknown,
+        ConnectivityStatus.online,
+        ConnectivityStatus.offline,
+        ConnectivityStatus.online,
+      ]);
+      verifyChecks(client, 2);
     });
 
     test('skip a tick while a check is still in flight', () async {
@@ -228,7 +282,7 @@ void main() {
       final client = MockObjects.httpClient([inFlight.future]);
       final sut = buildChecker(
         client,
-        checkFrequency: const Duration(milliseconds: 20),
+        offlineCheckFrequency: const Duration(milliseconds: 20),
       );
 
       recordEmissions(sut);
@@ -244,6 +298,7 @@ void main() {
       final sut = buildChecker(
         client,
         checkFrequency: const Duration(milliseconds: 20),
+        offlineCheckFrequency: const Duration(milliseconds: 20),
       );
       recordEmissions(sut);
       addTearDown(showApp);
@@ -273,6 +328,7 @@ void main() {
       final sut = buildChecker(
         client,
         checkFrequency: const Duration(milliseconds: 20),
+        offlineCheckFrequency: const Duration(milliseconds: 20),
       );
       hideApp();
       addTearDown(showApp);

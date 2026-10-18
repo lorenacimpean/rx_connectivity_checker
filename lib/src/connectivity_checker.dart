@@ -17,31 +17,26 @@ import 'package:rxdart/rxdart.dart';
 ///   other event (network available or changed) triggers a check right away,
 ///   followed by quick re-checks ([recheckDelays]) until the network is
 ///   reachable.
-/// - **Periodic checks** every [checkFrequency], paused while the app is hidden
-///   (backgrounded or minimised) and resumed with an immediate check when it
-///   becomes visible again.
-/// - **Manual checks** via [checkConnectivity], which always run a fresh check
-///   and restart the periodic timer.
+/// - **Periodic checks** every [checkFrequency] while online and every
+///   [offlineCheckFrequency] otherwise, so a reconnection is detected even when
+///   the platform does not report it (e.g. the iOS Simulator). Periodic checks
+///   pause while the app is hidden (backgrounded or minimised) and resume with
+///   an immediate check when it becomes visible again.
+/// - **Manual checks** via [checkConnectivity], which always run a fresh check,
+///   always emit their result and restart the periodic timer.
 ///
 /// The stream starts when the first listener subscribes and stops when the
 /// last one cancels, so a single instance can back the whole app session or
 /// only the screens that need it. New listeners immediately receive the last
 /// known status.
 ///
-/// ## Platform-specific behaviour
+/// ## Slow connections
 ///
-/// | Platform        | Timeout maps to              | [checkSlowConnection] honoured | Native signal source          |
-/// |-----------------|------------------------------|-------------------------------|-------------------------------|
-/// | Android / iOS   | `slow` or `offline`          | Yes                           | ConnectivityManager           |
-/// | **Windows**     | **always `offline`**         | **No — silently ignored**     | NLM (EventChannel)            |
-/// | Linux           | `slow` or `offline`          | Yes                           | NetworkManager / D-Bus        |
-/// | Web             | `slow` or `offline`          | Yes                           | `window` online/offline events|
-///
-/// > **Windows note:** The Windows networking stack rarely exhibits the degraded
-/// > "slow" states typical of mobile connections. A request timeout on Windows
-/// > strongly indicates an offline state or a blocked route. As a result,
-/// > [ConnectivityStatus.slow] is never returned on Windows regardless of the
-/// > value of [checkSlowConnection].
+/// With [checkSlowConnection] enabled, a successful response that takes longer
+/// than [slowConnectionThreshold] is reported as [ConnectivityStatus.slow].
+/// No response within [timeout] is always [ConnectivityStatus.offline] — a
+/// network without internet access (e.g. an emulator whose Wi-Fi has no
+/// upstream) makes requests hang rather than fail.
 class ConnectivityChecker {
   static const String _logName = 'RxConnectivityChecker';
   static const String _nativeLostStatus = 'lost';
@@ -49,15 +44,26 @@ class ConnectivityChecker {
   /// The maximum duration to wait for a connectivity check response.
   final Duration timeout;
 
-  /// The interval between periodic background connectivity checks.
+  /// The interval between periodic connectivity checks while online.
   final Duration checkFrequency;
+
+  /// The interval between periodic connectivity checks while not online.
+  ///
+  /// Shorter than [checkFrequency] by default so that a reconnection the
+  /// platform does not report is still picked up within seconds.
+  final Duration offlineCheckFrequency;
 
   /// The URL used to validate internet access.
   final String _url;
 
-  /// Whether a connection timeout should be reported as [ConnectivityStatus.slow]
-  /// instead of [ConnectivityStatus.offline].
+  /// Whether a successful response slower than [slowConnectionThreshold] is
+  /// reported as [ConnectivityStatus.slow] instead of [ConnectivityStatus.online].
   final bool checkSlowConnection;
+
+  /// The response time above which a successful check counts as slow when
+  /// [checkSlowConnection] is enabled. Must be shorter than [timeout] to have
+  /// any effect.
+  final Duration slowConnectionThreshold;
 
   /// Delays between follow-up checks after a native network change event.
   ///
@@ -90,20 +96,24 @@ class ConnectivityChecker {
   /// Creates a [ConnectivityChecker] instance.
   ///
   /// - [timeout]: The maximum time to wait for the connectivity check request response.
-  /// - [checkFrequency]: The interval at which the background check should occur.
+  /// - [checkFrequency]: The interval between periodic checks while online.
+  /// - [offlineCheckFrequency]: The interval between periodic checks while not online.
   /// - [url]: The URL used for the connectivity check (defaults to a reliable external source).
-  /// - [checkSlowConnection]: If true, a [TimeoutException] is mapped to
-  ///   [ConnectivityStatus.slow]. Otherwise, it is mapped to [ConnectivityStatus.offline].
-  ///   **Note:** This flag has no effect on Windows — timeouts always map to
-  ///   [ConnectivityStatus.offline] on that platform. See the class-level docs
-  ///   for the full platform-behaviour table.
+  /// - [checkSlowConnection]: If true, a successful response slower than
+  ///   [slowConnectionThreshold] is reported as [ConnectivityStatus.slow].
+  /// - [slowConnectionThreshold]: The response time above which a successful
+  ///   check counts as slow.
   /// - [recheckDelays]: Delays between follow-up checks after a native network
   ///   change, used until a check reports [ConnectivityStatus.online].
   /// - [client]: An optional HTTP client implementation for dependency injection.
   ConnectivityChecker({
     this.timeout = ConnectivityCheckerConstants.defaultTimeout,
     this.checkFrequency = ConnectivityCheckerConstants.defaultCheckFrequency,
+    this.offlineCheckFrequency =
+        ConnectivityCheckerConstants.defaultOfflineCheckFrequency,
     this.checkSlowConnection = false,
+    this.slowConnectionThreshold =
+        ConnectivityCheckerConstants.defaultSlowConnectionThreshold,
     this.recheckDelays = ConnectivityCheckerConstants.defaultRecheckDelays,
     this.headers,
     String? url,
@@ -116,9 +126,9 @@ class ConnectivityChecker {
 
   /// A shared stream of [ConnectivityStatus] updates.
   ///
-  /// Emits only when the status changes. A new listener immediately receives
-  /// the last known status ([ConnectivityStatus.unknown] before the first
-  /// check completes).
+  /// Emits when the status changes, and for every [checkConnectivity] result
+  /// even if unchanged. A new listener immediately receives the last known
+  /// status ([ConnectivityStatus.unknown] before the first check completes).
   ///
   /// Monitoring runs while at least one listener is subscribed and restarts
   /// when a listener subscribes again after all previous ones cancelled.
@@ -127,12 +137,13 @@ class ConnectivityChecker {
   /// Runs a fresh connectivity check immediately and restarts the periodic timer.
   ///
   /// The check is never throttled and never reuses an older in-flight check.
-  /// Its result is returned and, if it differs from the current status and no
-  /// network change happened meanwhile, emitted on [connectivityStream].
+  /// It always completes, within [timeout], with its result. The result is
+  /// also emitted on [connectivityStream] — even when unchanged — unless a
+  /// native network change made it stale while it was in flight.
   Future<ConnectivityStatus> checkConnectivity() {
     dev.log('Manual check triggered', name: _logName);
     _restartPeriodicTimer();
-    return _checkAndEmit();
+    return _checkAndEmit(_publish);
   }
 
   void _start() {
@@ -171,20 +182,26 @@ class ConnectivityChecker {
     dev.log('App visible again, checking', name: _logName);
     _isVisible = true;
     _restartPeriodicTimer();
-    _checkAndEmit();
+    _checkAndEmit(_emitIfChanged);
   }
 
   void _restartPeriodicTimer() {
     _periodicTimer?.cancel();
     _periodicTimer = _status.hasListener && _isVisible
-        ? Timer.periodic(checkFrequency, (_) => _onPeriodicTick())
+        ? Timer.periodic(_currentCheckFrequency, (_) => _onPeriodicTick())
         : null;
   }
+
+  Duration get _currentCheckFrequency =>
+      _isOnline(_status.value) ? checkFrequency : offlineCheckFrequency;
+
+  bool _isOnline(ConnectivityStatus status) =>
+      status == ConnectivityStatus.online;
 
   void _onPeriodicTick() {
     if (_checksInFlight > 0) return;
     dev.log('Periodic check triggered', name: _logName);
-    _checkAndEmit();
+    _checkAndEmit(_emitIfChanged);
   }
 
   void _onNativeStatus(String status) {
@@ -193,15 +210,15 @@ class ConnectivityChecker {
     _recheckSubscription?.cancel();
     _recheckSubscription = null;
     if (status == _nativeLostStatus) {
-      _emit(ConnectivityStatus.offline);
+      _emitIfChanged(ConnectivityStatus.offline);
     } else {
-      _recheckSubscription = _checkUntilOnline().listen(_emit);
+      _recheckSubscription = _checkUntilOnline().listen(_emitIfChanged);
     }
   }
 
   void _onNativeError(Object error) {
     dev.log('Native platform stream error: $error', name: _logName);
-    _emit(ConnectivityStatus.unknown);
+    _emitIfChanged(ConnectivityStatus.unknown);
   }
 
   /// Checks immediately, then once after each of [recheckDelays], stopping at
@@ -213,12 +230,14 @@ class ConnectivityChecker {
           )
           .takeWhileInclusive((status) => status != ConnectivityStatus.online);
 
-  /// Runs a check and emits its result unless a native network change
-  /// happened while it was in flight (its result would be stale).
-  Future<ConnectivityStatus> _checkAndEmit() async {
+  /// Runs a check and passes its result to [emit] unless a native network
+  /// change happened while it was in flight (its result would be stale).
+  Future<ConnectivityStatus> _checkAndEmit(
+    void Function(ConnectivityStatus status) emit,
+  ) async {
     final networkChangeCount = _networkChangeCount;
     final status = await _check();
-    if (networkChangeCount == _networkChangeCount) _emit(status);
+    if (networkChangeCount == _networkChangeCount) emit(status);
     return status;
   }
 
@@ -228,7 +247,7 @@ class ConnectivityChecker {
       return await _validator.validate(
         url: _url,
         timeout: timeout,
-        checkSlowConnection: checkSlowConnection,
+        slowThreshold: checkSlowConnection ? slowConnectionThreshold : null,
         headers: headers,
         client: _client,
       );
@@ -237,7 +256,15 @@ class ConnectivityChecker {
     }
   }
 
-  void _emit(ConnectivityStatus status) {
-    if (_status.value != status) _status.add(status);
+  void _emitIfChanged(ConnectivityStatus status) {
+    if (_status.value != status) _publish(status);
+  }
+
+  /// Emits [status], switching the periodic interval when the status crosses
+  /// between online and not online.
+  void _publish(ConnectivityStatus status) {
+    final wasOnline = _isOnline(_status.value);
+    _status.add(status);
+    if (wasOnline != _isOnline(status)) _restartPeriodicTimer();
   }
 }

@@ -24,11 +24,18 @@ void main() {
     MockHttpClient client, {
     RxConnectivityCheckerPlatform? platform,
     Duration checkFrequency = const Duration(hours: 1),
+    Duration offlineCheckFrequency = const Duration(hours: 1),
+    Duration timeout = const Duration(seconds: 1),
+    bool checkSlowConnection = false,
   }) =>
       ConnectivityChecker(
         platform: platform ?? MockObjects.platform(platformEvents.stream),
         client: client,
         checkFrequency: checkFrequency,
+        offlineCheckFrequency: offlineCheckFrequency,
+        timeout: timeout,
+        checkSlowConnection: checkSlowConnection,
+        slowConnectionThreshold: const Duration(milliseconds: 10),
         recheckDelays: const [],
       );
 
@@ -40,13 +47,17 @@ void main() {
         (
           sut.timeout,
           sut.checkFrequency,
+          sut.offlineCheckFrequency,
           sut.checkSlowConnection,
+          sut.slowConnectionThreshold,
           sut.recheckDelays,
         ),
         (
           ConnectivityCheckerConstants.defaultTimeout,
           ConnectivityCheckerConstants.defaultCheckFrequency,
+          ConnectivityCheckerConstants.defaultOfflineCheckFrequency,
           false,
+          ConnectivityCheckerConstants.defaultSlowConnectionThreshold,
           ConnectivityCheckerConstants.defaultRecheckDelays,
         ),
       );
@@ -117,6 +128,7 @@ void main() {
       final sut = buildChecker(
         client,
         checkFrequency: const Duration(milliseconds: 20),
+        offlineCheckFrequency: const Duration(milliseconds: 20),
       );
       final subscription = sut.connectivityStream.listen((_) {});
       await wait(50);
@@ -140,6 +152,53 @@ void main() {
 
       expect(result, ConnectivityStatus.online);
       expect(emitted, [ConnectivityStatus.unknown, ConnectivityStatus.online]);
+      verifyChecks(client, 1);
+    });
+
+    test('emits its result even when the status is unchanged', () async {
+      final client = MockObjects.httpClient([MockObjects.response(204)]);
+      final sut = buildChecker(client);
+      final emitted = recordEmissions(sut);
+      platformEvents.add('available');
+      await wait(20);
+
+      await sut.checkConnectivity();
+      await wait(0);
+
+      expect(emitted, [
+        ConnectivityStatus.unknown,
+        ConnectivityStatus.online,
+        ConnectivityStatus.online,
+      ]);
+      verifyChecks(client, 2);
+    });
+
+    test('returns offline, not slow, when no response arrives in time',
+        () async {
+      final client = MockObjects.unresponsiveHttpClient();
+      final sut = buildChecker(
+        client,
+        timeout: const Duration(milliseconds: 30),
+        checkSlowConnection: true,
+      );
+
+      final result = await sut.checkConnectivity();
+
+      expect(result, ConnectivityStatus.offline);
+      verifyChecks(client, 1);
+    });
+
+    test('returns slow for a successful response slower than the threshold',
+        () async {
+      final client = MockObjects.delayedHttpClient(
+        statusCode: 204,
+        delay: const Duration(milliseconds: 40),
+      );
+      final sut = buildChecker(client, checkSlowConnection: true);
+
+      final result = await sut.checkConnectivity();
+
+      expect(result, ConnectivityStatus.slow);
       verifyChecks(client, 1);
     });
 
