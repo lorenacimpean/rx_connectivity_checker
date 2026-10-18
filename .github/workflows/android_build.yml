@@ -39,3 +39,17 @@ jobs:
       - name: Run plugin unit tests
         working-directory: example/android
         run: ./gradlew :rx_connectivity_checker:testDebugUnitTest
+
+      - name: Enable KVM for the Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run integration smoke test (emulator)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          working-directory: example
+          script: flutter test integration_test -d emulator-5554

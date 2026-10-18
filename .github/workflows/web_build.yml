@@ -38,3 +38,9 @@ jobs:
       - name: Build Web (WebAssembly)
         working-directory: example
         run: flutter build web --wasm
+
+      - name: Run integration smoke test (Chrome)
+        working-directory: example
+        run: |
+          "$CHROMEWEBDRIVER/chromedriver" --port=4444 &
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/connectivity_smoke_test.dart -d web-server --browser-name=chrome

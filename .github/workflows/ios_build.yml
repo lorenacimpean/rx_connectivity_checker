@@ -47,6 +47,13 @@ jobs:
             exit 1
           fi
 
+      - name: Run integration smoke test (simulator)
+        working-directory: example
+        run: |
+          UDID=$(xcrun simctl list devices available --json | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
+          xcrun simctl boot "$UDID"
+          flutter test integration_test -d "$UDID"
+
   # The example app is migrated to Swift Package Manager, and a migrated plugin
   # example cannot be built with CocoaPods. A fresh app that depends on the
   # plugin by path exercises the podspec the way CocoaPods users consume it.

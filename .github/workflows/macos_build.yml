@@ -47,6 +47,10 @@ jobs:
             exit 1
           fi
 
+      - name: Run integration smoke test
+        working-directory: example
+        run: flutter test integration_test -d macos
+
   # The example app is migrated to Swift Package Manager, and a migrated plugin
   # example cannot be built with CocoaPods. A fresh app that depends on the
   # plugin by path exercises the podspec the way CocoaPods users consume it.
