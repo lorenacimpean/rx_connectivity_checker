@@ -1,0 +1,58 @@
+name: Test Flutter macOS Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: build (${{ matrix.package-manager }})
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package-manager: swiftpm
+            spm-flag: --enable-swift-package-manager
+          - package-manager: cocoapods
+            spm-flag: --no-enable-swift-package-manager
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Select dependency manager (${{ matrix.package-manager }})
+        run: flutter config ${{ matrix.spm-flag }}
+
+      - name: Get dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Build macOS (Debug)
+        working-directory: example
+        run: flutter build macos --debug 2>&1 | tee build.log
+
+      - name: Assert plugin is integrated via Swift Package Manager
+        if: matrix.package-manager == 'swiftpm'
+        working-directory: example
+        run: |
+          if grep -Eq "do not support Swift Package Manager|does not have Swift Package Manager support" build.log; then
+            echo "::error::rx_connectivity_checker was not integrated via Swift Package Manager"
+            exit 1
+          fi

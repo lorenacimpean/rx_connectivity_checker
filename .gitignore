@@ -103,3 +103,7 @@ gitignore
 
 # Claude Code
 CLAUDE.md
+
+# Swift Package Manager
+.build/
+.swiftpm/

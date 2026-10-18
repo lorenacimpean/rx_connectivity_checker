@@ -6,6 +6,27 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Swift Package Manager support** — the iOS and macOS implementations now ship a `Package.swift`, removing the "does not have Swift Package Manager support" warning. CocoaPods remains fully supported. SwiftPM integration requires Flutter 3.44+.
+- **`recheckDelays`** — new optional `ConnectivityChecker` parameter controlling the follow-up checks after a native network change (default: 1 s, 2 s, 4 s, 8 s).
+
+### Fixed
+
+- **`online` not emitted after a network comes back** (e.g. turning Wi-Fi back on on macOS) — the check fired by the native "available" event often ran before the new link could carry traffic (DHCP/DNS still settling) and reported `offline`; with no further native event, recovery waited for the next periodic check. In addition, a native event arriving while a check was still in flight was dropped. Native events now trigger a check followed by back-off re-checks until `online`, and each new event restarts that schedule instead of being dropped.
+- **Native builds failing with `Undefined name 'LinuxRxConnectivityChecker'`** — the Linux plugin declaration used `fileName` instead of `dartFileName`, so the generated plugin registrant imported the public library, which no longer exports the Linux implementation. The registrant now imports `src/linux_rx_connectivity_checker.dart` directly.
+- **Privacy manifest is now bundled** — `PrivacyInfo.xcprivacy` was present but never included by the podspecs. It is now packaged via `resource_bundles` (CocoaPods) and `resources` (SwiftPM) on both iOS and macOS.
+
+### Changed
+
+- **Native source layout** — Swift sources and privacy manifests moved from `ios|macos/Classes` and `ios|macos/Resources` to `ios|macos/rx_connectivity_checker/Sources/rx_connectivity_checker/`, as required by SwiftPM.
+- **macOS minimum deployment target** raised from 10.14 to 10.15 in the podspec to match Flutter's own minimum and the SwiftPM manifest.
+- Podspec versions are now kept in sync with the package version (were `1.0.1`).
+
+---
+
+## 1.0.0
+
+### Added
+
 - **Federated Architecture** — transitioned to a federated plugin model, adding native support for macOS, Windows, and Linux.
 - **Modern Web Support** — migrated web implementation to use `package:web` and `dart:js_interop` for WASM compatibility.
 - **Multi-Trigger System** — added support for platform-native change events, periodic heartbeats, and manual on-demand checks.

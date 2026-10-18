@@ -41,6 +41,14 @@ class ConnectivityChecker {
   /// instead of [ConnectivityStatus.offline].
   final bool checkSlowConnection;
 
+  /// Delays between follow-up checks after a native network change event.
+  ///
+  /// A network that has just come up often cannot carry traffic yet (DHCP,
+  /// DNS), so the check fired by the change event can fail. Follow-up checks
+  /// run after each delay until one reports [ConnectivityStatus.online] or a
+  /// newer change event restarts the schedule.
+  final List<Duration> recheckDelays;
+
   final RxConnectivityCheckerPlatform _platform;
   final ReachabilityValidator _validator;
   final IHttpClient? _client;
@@ -65,11 +73,14 @@ class ConnectivityChecker {
   ///   **Note:** This flag has no effect on Windows — timeouts always map to
   ///   [ConnectivityStatus.offline] on that platform. See the class-level docs
   ///   for the full platform-behaviour table.
+  /// - [recheckDelays]: Delays between follow-up checks after a native network
+  ///   change, used until a check reports [ConnectivityStatus.online].
   /// - [client]: An optional HTTP client implementation for dependency injection.
   ConnectivityChecker({
     this.timeout = ConnectivityCheckerConstants.defaultTimeout,
     this.checkFrequency = ConnectivityCheckerConstants.defaultCheckFrequency,
     this.checkSlowConnection = false,
+    this.recheckDelays = ConnectivityCheckerConstants.defaultRecheckDelays,
     this.headers,
     String? url,
     RxConnectivityCheckerPlatform? platform,
@@ -101,17 +112,12 @@ class ConnectivityChecker {
 
   /// Composes the connectivity monitoring pipeline.
   ///
-  /// Merges periodic timers, manual triggers, and native platform events into
-  /// a single stream that performs actual network validation.
+  /// Merges periodic timers and manual triggers with native platform events
+  /// into a single stream that performs actual network validation. Each native
+  /// event cancels the previous event's follow-up checks.
   Stream<ConnectivityStatus> _buildStream() {
     final periodicStream = Stream.periodic(checkFrequency, (_) {
       dev.log('Periodic check triggered', name: 'RxConnectivityChecker');
-      return true;
-    });
-
-    final nativeStream = _platform.platformStatusStream.map((status) {
-      dev.log('Native platform status changed: $status',
-          name: 'RxConnectivityChecker');
       return true;
     });
 
@@ -120,11 +126,30 @@ class ConnectivityChecker {
       return true;
     });
 
-    return Rx.merge([periodicStream, manualStream, nativeStream])
+    final scheduledChecks = Rx.merge([periodicStream, manualStream])
         .throttleTime(ConnectivityCheckerConstants.defaultThrottleTime)
-        .exhaustMap((_) => Stream.fromFuture(_performCheck()))
+        .exhaustMap((_) => Stream.fromFuture(_performCheck()));
+
+    final networkChangeChecks =
+        _platform.platformStatusStream.switchMap((status) {
+      dev.log('Native platform status changed: $status',
+          name: 'RxConnectivityChecker');
+      return _checkUntilOnline();
+    });
+
+    return Rx.merge([scheduledChecks, networkChangeChecks])
+        .onErrorReturn(ConnectivityStatus.unknown)
         .startWith(ConnectivityStatus.unknown);
   }
+
+  /// Checks immediately, then once after each of [recheckDelays], stopping at
+  /// the first [ConnectivityStatus.online] result.
+  Stream<ConnectivityStatus> _checkUntilOnline() =>
+      Stream.fromIterable([Duration.zero, ...recheckDelays])
+          .asyncExpand(
+            (delay) => Rx.timer(null, delay).asyncMap((_) => _performCheck()),
+          )
+          .takeWhileInclusive((status) => status != ConnectivityStatus.online);
 
   /// Executes the network validation logic, ensuring only one check runs at a time.
   Future<ConnectivityStatus> _performCheck() async {
