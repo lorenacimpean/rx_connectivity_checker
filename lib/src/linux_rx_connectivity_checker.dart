@@ -10,6 +10,31 @@ import 'package:rx_connectivity_checker/rx_connectivity_checker_platform_interfa
 /// This implementation subscribes to system signals to provide a reactive
 /// stream of connectivity updates without constant polling.
 class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
+  static const String _available = 'available';
+  static const String _lost = 'lost';
+  static const String _unknown = 'unknown';
+  static const String _networkManagerName = 'org.freedesktop.NetworkManager';
+
+  // NMConnectivityState values of the `Connectivity` property.
+  static const int _nmConnectivityNone = 1;
+  static const int _nmConnectivityFull = 4;
+
+  // NMState values carried by the `StateChanged` signal.
+  static const int _nmStateAsleep = 10;
+  static const int _nmStateDisconnected = 20;
+  static const int _nmStateConnectedGlobal = 70;
+
+  /// Creates the Linux implementation.
+  ///
+  /// [createClient] opens the D-Bus connection; it defaults to the system bus
+  /// and is only replaced in tests (e.g. with a private bus hosting a fake
+  /// NetworkManager).
+  LinuxRxConnectivityChecker({
+    @visibleForTesting DBusClient Function()? createClient,
+  }) : _createClient = createClient ?? DBusClient.system;
+
+  final DBusClient Function() _createClient;
+
   /// Cached broadcast stream so that multiple subscribers (e.g. multiple
   /// [ConnectivityChecker] instances) share a single D-Bus connection rather
   /// than each creating their own.
@@ -26,7 +51,10 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
   /// the underlying file descriptor and preventing leaks on hot-restart or
   /// widget disposal. A subsequent subscription reopens the connection.
   ///
-  /// Emits `'available'` for full internet connectivity, `'lost'` otherwise.
+  /// Emits `'available'` for full internet connectivity, `'lost'` when there is
+  /// no network at all, and `'unknown'` for every other state (connectivity
+  /// checking disabled, captive portal, limited or transitional states, or
+  /// NetworkManager unreachable) so that the Dart side verifies access itself.
   @override
   Stream<String> get platformStatusStream {
     _cachedStream ??= _buildStream();
@@ -35,84 +63,101 @@ class LinuxRxConnectivityChecker extends RxConnectivityCheckerPlatform {
 
   Stream<String> _buildStream() {
     late StreamController<String> controller;
-    StreamSubscription? signalSubscription;
+    StreamSubscription<int>? signalSubscription;
     DBusClient? client;
 
     controller = StreamController<String>.broadcast(
       onListen: () async {
-        // Create a fresh D-Bus client each time a new subscription begins so
-        // that re-subscribing after a cancel works correctly.
-        client = DBusClient.system();
+        // Each listen session owns its client, so a cancel that overlaps a new
+        // listen (e.g. navigating between screens) never closes the new one.
+        final sessionClient = _createClient();
+        client = sessionClient;
         try {
-          // 1. Initial State Check
-          // Fetch current Connectivity via the standard 'org.freedesktop.DBus.Properties'
-          final result = await client!.callMethod(
-            destination: 'org.freedesktop.NetworkManager',
-            path: DBusObjectPath('/org/freedesktop/NetworkManager'),
-            interface: 'org.freedesktop.DBus.Properties',
-            name: 'Get',
-            values: [
-              DBusString('org.freedesktop.NetworkManager'),
-              DBusString('Connectivity'),
-            ],
-          );
-
-          if (result.returnValues.isNotEmpty) {
-            // Properties.Get returns a Variant (v), which we unpack to Uint32 (u)
-            final connectivity = result.returnValues[0].asVariant().asUint32();
-            _emitStatus(controller, connectivity);
+          final connectivity = await _readConnectivity(sessionClient);
+          if (client != sessionClient) return;
+          if (connectivity != null) {
+            controller.add(statusFromConnectivity(connectivity));
           }
-
-          // 2. Continuous Monitoring
-          // Listen for 'StateChanged' signals emitted by NetworkManager
-          signalSubscription = DBusSignalStream(
-            client!,
-            sender: 'org.freedesktop.NetworkManager',
-            interface: 'org.freedesktop.NetworkManager',
-            name: 'StateChanged',
-          ).listen((signal) {
-            if (signal.values.isNotEmpty) {
-              final state = signal.values[0].asUint32();
-              _emitStatus(controller, state);
-            }
-          });
+          signalSubscription = _stateChanges(sessionClient).listen(
+            (state) => controller.add(statusFromState(state)),
+          );
         } catch (e) {
+          // Without NetworkManager (not installed, or a sandbox without system
+          // bus access) the network state is unknown, not lost: let the Dart
+          // side check over HTTP instead of reporting offline.
           debugPrint('LinuxConnectivity Error: $e');
-          controller.add('lost');
+          if (client == sessionClient) controller.add(_unknown);
         }
       },
       onCancel: () async {
-        // Cancel the signal subscription first, then close the D-Bus client
-        // to release the underlying system socket and prevent FD leaks on
-        // hot-restart or widget disposal.
-        await signalSubscription?.cancel();
+        final cancelledSubscription = signalSubscription;
+        final cancelledClient = client;
         signalSubscription = null;
-        await client?.close();
         client = null;
-        // Clear the cache so the next call to platformStatusStream creates a
-        // fresh stream with a new D-Bus connection.
+        // The next call to platformStatusStream creates a fresh stream with a
+        // new D-Bus connection.
         _cachedStream = null;
+        // Cancel the signal subscription first, then close the D-Bus client
+        // to release the underlying system socket and prevent FD leaks.
+        await cancelledSubscription?.cancel();
+        await cancelledClient?.close();
       },
     );
 
     return controller.stream;
   }
 
+  /// Reads NetworkManager's current `Connectivity` property.
+  Future<int?> _readConnectivity(DBusClient client) async {
+    final result = await client.callMethod(
+      destination: _networkManagerName,
+      path: DBusObjectPath('/org/freedesktop/NetworkManager'),
+      interface: 'org.freedesktop.DBus.Properties',
+      name: 'Get',
+      values: [DBusString(_networkManagerName), DBusString('Connectivity')],
+    );
+    // Properties.Get returns a Variant (v), which we unpack to Uint32 (u).
+    return result.returnValues.isEmpty
+        ? null
+        : result.returnValues[0].asVariant().asUint32();
+  }
+
+  /// NetworkManager's `StateChanged` signals, as NMState values.
+  Stream<int> _stateChanges(DBusClient client) => DBusSignalStream(
+        client,
+        sender: _networkManagerName,
+        interface: _networkManagerName,
+        name: 'StateChanged',
+      )
+          .where((signal) => signal.values.isNotEmpty)
+          .map((signal) => signal.values[0].asUint32());
+
   /// Returns the current platform version string.
   @override
   Future<String?> getPlatformVersion() async => "Linux (DBus)";
 
-  /// Translates Linux NetworkManager state codes into unified plugin status strings.
+  /// Maps NetworkManager's `Connectivity` property to a plugin status.
   ///
-  /// * [state] of `4` represents `NM_CONNECTIVITY_FULL`.
-  /// * [state] of `70` represents `NM_STATE_CONNECTED_GLOBAL`.
-  void _emitStatus(StreamController<String> controller, int state) {
-    if (state == 4 || state == 70) {
-      controller.add('available');
-    } else {
-      controller.add('lost');
-    }
-  }
+  /// `NM_CONNECTIVITY_UNKNOWN` (checking disabled), `PORTAL` and `LIMITED`
+  /// map to `'unknown'` so that the Dart side runs its own check.
+  @visibleForTesting
+  static String statusFromConnectivity(int connectivity) =>
+      switch (connectivity) {
+        _nmConnectivityFull => _available,
+        _nmConnectivityNone => _lost,
+        _ => _unknown,
+      };
+
+  /// Maps the NetworkManager state carried by `StateChanged` to a plugin status.
+  ///
+  /// Only `NM_STATE_ASLEEP` and `NM_STATE_DISCONNECTED` mean there is no network;
+  /// connecting, local-only and site-only states map to `'unknown'`.
+  @visibleForTesting
+  static String statusFromState(int state) => switch (state) {
+        _nmStateConnectedGlobal => _available,
+        _nmStateAsleep || _nmStateDisconnected => _lost,
+        _ => _unknown,
+      };
 
   /// Registers this class as the default instance of [RxConnectivityCheckerPlatform]
   /// for the Linux platform.

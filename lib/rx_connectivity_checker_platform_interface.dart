@@ -19,9 +19,14 @@ abstract class RxConnectivityCheckerPlatform extends PlatformInterface {
 
   /// A stream that emits events when the native platform detects a connectivity change.
   ///
-  /// Returns a stream of strings representing the status (e.g. "satisfied", "lost").
+  /// Implementations must:
+  /// - emit the current state as soon as the stream is listened to;
+  /// - emit `'lost'` when no network is available at all — it is reported as
+  ///   offline immediately, without a network request;
+  /// - emit any other value (e.g. `'available'`) when a network becomes
+  ///   available or the active network changes — it triggers a check.
   Stream<String> get platformStatusStream {
-    throw UnimplementedError('onConnectivityChanged has not been implemented.');
+    throw UnimplementedError('platformStatusStream has not been implemented.');
   }
 
   Future<String?> getPlatformVersion() {

@@ -3,8 +3,8 @@ description: Example app for rx_connectivity_checker.
 publish_to: 'none'
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
-  flutter: ">=3.41.0 <4.0.0"
+  sdk: ">=3.0.0"
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
@@ -16,6 +16,10 @@ dependencies:
   flutter_animate: any
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_driver:
     sdk: flutter
   flutter_lints: ^4.0.0
 
