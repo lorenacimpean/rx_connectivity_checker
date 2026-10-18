@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.0
+
+### Added
+
+- **Swift Package Manager support** — the iOS and macOS implementations now ship a `Package.swift`, removing the "does not have Swift Package Manager support" warning. CocoaPods remains fully supported. SwiftPM integration requires Flutter 3.44+.
+
+### Fixed
+
+- **Native builds failing with `Undefined name 'LinuxRxConnectivityChecker'`** — the Linux plugin declaration used `fileName` instead of `dartFileName`, so the generated plugin registrant imported the public library, which no longer exports the Linux implementation. The registrant now imports `src/linux_rx_connectivity_checker.dart` directly.
+- **Privacy manifest is now bundled** — `PrivacyInfo.xcprivacy` was present but never included by the podspecs. It is now packaged via `resource_bundles` (CocoaPods) and `resources` (SwiftPM) on both iOS and macOS.
+
+### Changed
+
+- **Native source layout** — Swift sources and privacy manifests moved from `ios|macos/Classes` and `ios|macos/Resources` to `ios|macos/rx_connectivity_checker/Sources/rx_connectivity_checker/`, as required by SwiftPM.
+- **macOS minimum deployment target** raised from 10.14 to 10.15 in the podspec to match Flutter's own minimum and the SwiftPM manifest.
+- Podspec versions are now kept in sync with the package version (were `1.0.1`).
+
+---
+
 ## 1.0.0
 
 ### Added

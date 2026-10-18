@@ -35,7 +35,7 @@ Add `rx_connectivity_checker` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  rx_connectivity_checker: ^1.0.0
+  rx_connectivity_checker: ^1.1.0
 ```
 
 Then run:
@@ -164,6 +164,8 @@ Add the following permissions to `android/app/src/main/AndroidManifest.xml`:
 ```
 
 ### iOS / macOS
+
+The plugin supports both **Swift Package Manager** and **CocoaPods** — no extra setup is needed for either. Swift Package Manager integration requires Flutter 3.44 or later; on older Flutter versions keep it disabled and CocoaPods is used.
 
 No additional permissions are required for iOS.
 

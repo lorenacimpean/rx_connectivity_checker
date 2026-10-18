@@ -1,13 +1,14 @@
 Pod::Spec.new do |s|
   s.name             = 'rx_connectivity_checker'
-  s.version          = '1.0.1'
+  s.version          = '1.1.0'
   s.summary          = 'iOS implementation of rx_connectivity_checker'
   s.description      = 'Robust reactive connectivity monitoring for iOS.'
   s.homepage         = 'https://github.com/lorenacimpean/rx_connectivity_checker'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'Lorena Cimpean' => 'lorenacimpean@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = 'rx_connectivity_checker/Sources/rx_connectivity_checker/**/*.swift'
+  s.resource_bundles = { 'rx_connectivity_checker_privacy' => ['rx_connectivity_checker/Sources/rx_connectivity_checker/PrivacyInfo.xcprivacy'] }
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
