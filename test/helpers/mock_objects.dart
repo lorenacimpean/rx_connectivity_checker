@@ -67,6 +67,20 @@ List<ConnectivityStatus> recordEmissions(ConnectivityChecker checker) {
 Future<void> wait(int milliseconds) =>
     Future<void>.delayed(Duration(milliseconds: milliseconds));
 
+/// Waits until [condition] holds, failing the test after [timeout].
+Future<void> eventually(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('Condition not met within $timeout');
+    }
+    await wait(10);
+  }
+}
+
 void verifyChecks(MockHttpClient client, Object count) => verify(
       () => client.get(any(), headers: any(named: 'headers')),
     ).called(count);

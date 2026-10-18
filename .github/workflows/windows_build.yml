@@ -1,21 +1,29 @@
 name: Test Flutter Windows Build
 
 on:
+  push:
+    branches: [master]
+  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Enable MSBuild
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Precache Windows
         run: flutter precache --windows
@@ -27,3 +35,7 @@ jobs:
       - name: Build Windows (Release)
         working-directory: example
         run: flutter build windows --release
+
+      - name: Run integration smoke test
+        working-directory: example
+        run: flutter test integration_test -d windows
